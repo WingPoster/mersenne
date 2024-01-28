@@ -62,6 +62,7 @@
 #define LOCK_FILE_NAME "lock.pid"
 #define DB_FILE_NAME "db.dat"
 #define MERSENNE_FILE_NAME "mersenne.dat"
+#define LAST_FILE_NAME "mersenne.last"
 
 #define PI 3.14159265358979
 
@@ -98,7 +99,6 @@ int g_nLogLevel = LOG_DEBUG;
 char g_achOptionPath[MAX_SIZE];
 char g_achAddress[MAX_SIZE];
 int g_nChildProcessID = 0;
-int g_nIsMain = 0;
 
 uint64_t g_nMersenne = 3;
 uint64_t bits_max = 4294967296;
@@ -178,6 +178,8 @@ void findMersenne();
 int isPrime(uint64_t num);
 int isMersenne(uint64_t num);
 int getKnownMersenne(int number);
+void setLastTFM(long p);
+long getLastTFM();
 
 void runAll();
 void runTFM();
@@ -217,14 +219,13 @@ int main(int argc, char ** argv) {
   }else {
     logging(LOG_INFO, "Unknown Run Mode [%d].\n", g_nRunMode);
   }
-  if(g_nIsMain) {
-    logging(LOG_INFO, "Processing Time : %ld\n", time(NULL) - tStart);
-  }
+  logging(LOG_INFO, "Processing Time : %ld\n", time(NULL) - tStart);
 }
 
 void runAll() {
   logging(LOG_INFO, "All process START!\n");
   logging(LOG_INFO, "TFM process START!\n");
+  logging(LOG_DEBUG, "This is launcher process. pid=[%ld]\n", (long)getpid()); 
   launchTFM();
   launchLLT();
 }
@@ -311,16 +312,14 @@ void launchLLT() {
         logging(LOG_INFO, "fork failed, reason=failed create child process.\n");
         return;
       case 0:
-        g_nIsMain = 1;
-        logging(LOG_DEBUG, "This is parent process. pid=[%ld]\n", (long)getpid()); 
-        break;
-      default:
-        logging(LOG_DEBUG, "This is child process. pid=[%ld]\n", (long)getpid());
+        logging(LOG_DEBUG, "This is child LLT process. pid=[%ld]\n", (long)getpid());
         g_nChildProcessID = pid;
         g_nStartPrime = nStartPrime;
         g_nEndPrime = nEndPrime;
         runLLT();
         logging(LOG_DEBUG, "Child process id=[%d]\n", pid);
+        break;
+      default:
         break;
     }
   }
@@ -343,16 +342,14 @@ void launchTFM() {
         logging(LOG_DEBUG, "fork failed, reason=failed create child process.\n");
         return;
       case 0:
-        g_nIsMain = 1;
-        logging(LOG_DEBUG, "This is parent process. pid=[%ld]\n", (long)getpid()); 
-        break;
-      default:
-        logging(LOG_DEBUG, "This is child process. pid=[%ld]\n", (long)getpid());
+        logging(LOG_DEBUG, "This is child TFM process. pid=[%ld]\n", (long)getpid());
         g_nChildProcessID = pid;
         g_nMinPrime = nMinPrime;
         g_nMaxPrime = nMaxPrime;
         runTFM();
         logging(LOG_DEBUG, "Child process id=[%d]\n", pid);
+        break;
+      default:
         break;
     }
   }
@@ -1189,10 +1186,6 @@ void agent(int sock) {
       logging(LOG_DEBUG, "fork failed, reason=failed create child process.\n");
       return;       
     case 0:
-      g_nIsMain = 1;
-      logging(LOG_DEBUG, "This is parent process. pid=[%ld]\n", (long)getpid());
-      break;
-    default:
       logging(LOG_DEBUG, "This is child process. pid=[%ld]\n", (long)getpid());
       g_nChildProcessID = pid;
       memset(message, 0x00, MAX_SIZE);
@@ -1220,6 +1213,8 @@ void agent(int sock) {
       close(sock);
       logging(LOG_DEBUG, "Child process id=[%d]\n", pid);
       break;
+    default:
+      break;
   }
 }
 
@@ -1238,10 +1233,11 @@ void console() {
     }
     logging(LOG_INFO, "Candidate Count : [%d] (M%llu ~ M%llu)\n", nCount, g_nMinMersenne, g_nMaxMersenne);
     logging(LOG_INFO, "Min Mersenne Candidate : [%d]\n", nMinMersenne);
+    logging(LOG_INFO, "TFM Last Prime : [%ld]\n", getLastTFM());
 
     for(int i = 0; i < 1000; i++) {
       if(getBit(i) == 1 && getKnownMersenne(i) == 0) {
-        logging(LOG_DEBUG, "x"); 
+        logging(LOG_DEBUG, "*"); 
       } else {
         logging(LOG_DEBUG, " ");
       }
@@ -1249,6 +1245,7 @@ void console() {
         logging(LOG_DEBUG, "\n");
       }
     }
+    logging(LOG_DEBUG, "\n");
   } else if(g_nUseSocket == USE_SOCKET) {
     int sock;
     struct sockaddr_in serv_addr;
@@ -1465,6 +1462,7 @@ void initMersenne() {
 void findMersenne() {
   int nPrime = 0;
 
+  g_nMinPrime = getLastTFM();
   logging(LOG_DEBUG, "MinPrime[%llu] ~ MaxPrime[%llu] Start\n", g_nMinPrime, g_nMaxPrime);
   // Except p=2 and check only odds
   // if Mersenne Prime is 2^p-1, p is 8k+1/-1.
@@ -1503,6 +1501,7 @@ void findMersenne() {
       }
     }
 
+    setLastTFM(p);
     PrintMersenneCount();
   }
   logging(LOG_DEBUG, "MinPrime[%llu] ~ MaxPrime[%llu] End\n", g_nMinPrime, g_nMaxPrime);
@@ -1784,4 +1783,30 @@ void getStatus(char * pchStatus) {
   } else {
     setStatus(STATUS_EXIT);
   }
+}
+
+void setLastTFM(long p) {
+  FILE *fp = NULL;
+  if((fp = fopen(LAST_FILE_NAME, "w")) != NULL ) {
+    char buff[MAX_SIZE];
+    memset(buff, 0x00, MAX_SIZE);
+    sprintf(buff, "%ld", p);
+    fwrite(&buff, 1, MAX_SIZE, fp);
+    fclose(fp);
+  }
+}
+
+long getLastTFM() {
+  long lLastPrime = 0;
+  FILE *fp = NULL;
+  if((fp = fopen(LAST_FILE_NAME, "r")) != NULL ) {
+    char buff[MAX_SIZE];
+    memset(buff, 0x00, MAX_SIZE);
+    fread(&buff, 1, MAX_SIZE, fp);
+    lLastPrime = atol(buff);
+    fclose(fp);
+  } else {
+    return g_nMinPrime;
+  }
+  return lLastPrime;
 }
