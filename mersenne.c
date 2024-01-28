@@ -8,10 +8,9 @@
 #include <math.h>
 #include <time.h>
 #include <stdarg.h>
-#include <unistd.h> // fork
-#include <arpa/inet.h> // sock
-#include <sys/types.h> // sock
-#include <sys/socket.h> // sock
+#include <arpa/inet.h> // socket
+#include <sys/types.h> // socket
+#include <sys/socket.h> // socket
 
 #ifdef WIN32
 #include <io.h>
@@ -22,8 +21,8 @@
 #endif
 
 #define RUN_ALL       0
-#define RUN_SEARCH    1
-#define RUN_LL        2
+#define RUN_TFM       1
+#define RUN_LLT       2
 #define RUN_SERVER    3
 #define RUN_CONSOLE   4
 #define RUN_TEST      5
@@ -36,9 +35,6 @@
 
 #define USE_DIRECT    0 
 #define USE_SOCKET    1 
-
-#define LL_NODEBUG    0
-#define LL_DEBUG      0
 
 #define MAX_SIZE      1024
 #define MAX_BUFF_SIZE 8092
@@ -62,11 +58,18 @@
 
 #define KNOWN_MERSENNE 51
 
+#define STATUS_FILE_NAME "status"
 #define LOCK_FILE_NAME "lock.pid"
 #define DB_FILE_NAME "db.dat"
 #define MERSENNE_FILE_NAME "mersenne.dat"
 
 #define PI 3.14159265358979
+
+#define STATUS_INIT "init"
+#define STATUS_READY "ready"
+#define STATUS_RUN "run"
+#define STATUS_STOP "stop"
+#define STATUS_EXIT "exit"
 
 int g_nAlgorithmType = FULL_LIST;
 
@@ -79,15 +82,16 @@ uint64_t g_nMaxPrime = MAX_PRIME;
 uint64_t g_nStartPrime = 2;
 uint64_t g_nEndPrime = MAX_PRIME;
 
+// sequence A000043 in the OEIS
 int knownMersenne[] = {2,3,5,7,13,17,19,31,61,89,107,127,521,607,1279,2203,2281,3217,4253,4423,9689,9941,11213,19937,21701,23209,44497,86243,110503,132049,216091, 756839,859433,1257787,1398269,2976221,3021377,6972593,13466917,20996011,24036583,25964951, 30402457,32582657,37156667,42643801,43112609,57885161,74207281,77232917,82589933};
 
-int g_nRunMode = RUN_SEARCH;
+int g_nRunMode = RUN_TFM;
 int g_nAlgorithm = ALGO_KJ;
 int g_nUseFFT = USE_FFT;
 int g_nUseSocket = USE_SOCKET;
 int g_nNoFile = 1;
-int g_nSearchProcessCount = 1;
-int g_nLLProcessCount = 1;
+int g_nTFMProcessCount = 1;
+int g_nLLTProcessCount = 1;
 int g_nPort = 8080;
 int g_nLogLevel = LOG_DEBUG;
 
@@ -166,8 +170,8 @@ int compareop(uint64_t op, uint64_t * dst);
 int iszero();
 void propa_carrier(uint64_t nIndex, uint64_t * dst);
 
-void LLmethod(uint64_t * src, uint64_t *dst);
-void LLmulmod(uint64_t * src, uint64_t *dst);
+void LLTmethod(uint64_t * src, uint64_t *dst);
+void LLTmulmod(uint64_t * src, uint64_t *dst);
 
 void initMersenne();
 void findMersenne();
@@ -176,14 +180,14 @@ int isMersenne(uint64_t num);
 int getKnownMersenne(int number);
 
 void runAll();
-void runSearch();
-void runLL();
+void runTFM();
+void runLLT();
 void runServer();
 void runConsole();
 void runTest();
 
-void launchLL();
-void launchSearch();
+void launchLLT();
+void launchTFM();
 
 time_t tStart = 0;
 void error_handling(char *message);
@@ -191,16 +195,19 @@ void error_handling(char *message);
 void lock_enter();
 void lock_leave();
 
+void getStatus(char * pchStatus);
+void setStatus(char * pchStatus);
+
 int main(int argc, char ** argv) {
   readCommand(argc, argv);
   tStart = time(NULL);
 
   if(g_nRunMode == RUN_ALL) {
     runAll();
-  } else if(g_nRunMode == RUN_SEARCH) {
-    runSearch();
-  } else if(g_nRunMode == RUN_LL) {
-    runLL();
+  } else if(g_nRunMode == RUN_TFM) {
+    runTFM();
+  } else if(g_nRunMode == RUN_LLT) {
+    runLLT();
   } else if(g_nRunMode == RUN_SERVER) {
     runServer();
   } else if(g_nRunMode == RUN_CONSOLE) {
@@ -217,27 +224,33 @@ int main(int argc, char ** argv) {
 
 void runAll() {
   logging(LOG_INFO, "All process START!\n");
-  logging(LOG_INFO, "Search process START!\n");
-  launchSearch();
-  logging(LOG_INFO, "LL process START!\n");
-  launchLL();
+  logging(LOG_INFO, "TFM process START!\n");
+  launchTFM();
+  launchLLT();
 }
 
-void runSearch(){
-  logging(LOG_INFO, "Search Mode START!\n");
+void runTFM(){
+  logging(LOG_INFO, "TFM Mode START!\n");
+  setStatus(STATUS_INIT);
   initMersenne();
+  setStatus(STATUS_READY);
   findMersenne();
 }
 
-void runLL(){
-  logging(LOG_INFO, "LL Mode START!\n");
+void runLLT(){
+  logging(LOG_INFO, "LLT Mode START!\n");
+
+  char achStatus[MAX_SIZE];
+  do {
+    memset(achStatus, 0x00, MAX_SIZE);
+    getStatus(achStatus);
+    sleep(1);
+  } while(strcmp(achStatus, STATUS_READY) != 0);
+  readBits();
 
   if(g_nRunMode == RUN_ALL) {
     for(int i = 0; i < g_nMaxMersenne; i++) {
-      if(getBit(i) == MERSENNE_NUMBER) {
-        continue;
-      }
-      if(getKnownMersenne(i)) {
+      if(getBit(i) == MERSENNE_NUMBER || getKnownMersenne(i) == 1) {
         continue;
       }
       g_nMersenne = i;
@@ -247,7 +260,7 @@ void runLL(){
         setBit(i, MERSENNE_NUMBER);
       }
     }
-  } else {
+  } else if(g_nRunMode == RUN_LLT) {
     initInteger();
     for(int i = g_nStartPrime; i <= g_nEndPrime; i+=2) {
       if(getBit(i) == MERSENNE_NUMBER) {
@@ -260,6 +273,8 @@ void runLL(){
         setBit(i, MERSENNE_NUMBER);
       }
     }
+  } else {
+    logging(LOG_INFO, "Unknown Run Mode [%d].\n", g_nRunMode);
   }
   logging(LOG_INFO, "PrimalityTesting Complete!\n");
 }
@@ -279,48 +294,64 @@ void runTest() {
   test();
 }
 
-void launchLL() {
+void launchLLT() {
   pid_t pid;
-  for(int i = 1; i <= g_nLLProcessCount; i++) {
+  for(int i = 1; i <= g_nLLTProcessCount; i++) {
     pid = fork();
-    g_nStartPrime = (g_nStartPrime/g_nLLProcessCount)*i;
-    g_nEndPrime = (g_nEndPrime/g_nLLProcessCount)*i;
+    int nStartPrime = 0;
+    int nEndPrime = 0;
+    nStartPrime = g_nStartPrime + ((g_nEndPrime - g_nStartPrime)/g_nTFMProcessCount)*i;
+    if(i != g_nTFMProcessCount -1) {
+      nEndPrime = g_nStartPrime + ((g_nEndPrime - g_nStartPrime)/g_nTFMProcessCount)*(i+1) - 1;
+    } else {
+      nEndPrime = g_nEndPrime;
+    }
     switch(pid) {
       case -1:
         logging(LOG_INFO, "fork failed, reason=failed create child process.\n");
         return;
       case 0:
         g_nIsMain = 1;
-        logging(LOG_DEBUG, "This is parent process.\n"); 
+        logging(LOG_DEBUG, "This is parent process. pid=[%ld]\n", (long)getpid()); 
         break;
       default:
-        logging(LOG_DEBUG, "This is child process.\n");
+        logging(LOG_DEBUG, "This is child process. pid=[%ld]\n", (long)getpid());
         g_nChildProcessID = pid;
-        runLL();
+        g_nStartPrime = nStartPrime;
+        g_nEndPrime = nEndPrime;
+        runLLT();
         logging(LOG_DEBUG, "Child process id=[%d]\n", pid);
         break;
     }
   }
 }
 
-void launchSearch() {
+void launchTFM() {
   pid_t pid;
-  for(int i = 0; i < g_nSearchProcessCount; i++) {
+  for(int i = 0; i < g_nTFMProcessCount; i++) {
     pid = fork();
-    g_nMinPrime = (g_nMinPrime/g_nSearchProcessCount)*i;
-    g_nMaxPrime = (g_nMaxPrime/g_nSearchProcessCount)*i;
+    int nMinPrime = 0;
+    int nMaxPrime = 0;
+    nMinPrime = g_nMinPrime + ((g_nMaxPrime - g_nMinPrime)/g_nTFMProcessCount)*i;
+    if(i != g_nTFMProcessCount -1) {
+      nMaxPrime = g_nMinPrime + ((g_nMaxPrime - g_nMinPrime)/g_nTFMProcessCount)*(i+1) - 1;
+    } else {
+      nMaxPrime = g_nMaxPrime;
+    }
     switch(pid) {
       case -1:
         logging(LOG_DEBUG, "fork failed, reason=failed create child process.\n");
         return;
       case 0:
         g_nIsMain = 1;
-        logging(LOG_DEBUG, "This is parent process.\n"); 
+        logging(LOG_DEBUG, "This is parent process. pid=[%ld]\n", (long)getpid()); 
         break;
       default:
-        logging(LOG_DEBUG, "This is child process.\n");
+        logging(LOG_DEBUG, "This is child process. pid=[%ld]\n", (long)getpid());
         g_nChildProcessID = pid;
-        runSearch();
+        g_nMinPrime = nMinPrime;
+        g_nMaxPrime = nMaxPrime;
+        runTFM();
         logging(LOG_DEBUG, "Child process id=[%d]\n", pid);
         break;
     }
@@ -377,14 +408,14 @@ int PrimalityTesting(uint64_t p) {
     tStepStart = time(NULL);
 
     if(g_nAlgorithm == ALGO_MULMOD) {
-      LLmulmod(bigC, bigS);
+      LLTmulmod(bigC, bigS);
     } else {
-      LLmethod(bigC, bigS);
+      LLTmethod(bigC, bigS);
     }
     tStepEnd = time(NULL);
 
-    logging(LOG_DEBUG, "LL [%7llu]  i=[%7llu] s=[%7llu] s0=[%20llu] t=[%3ld]\n", p, i, getBits(bigS), bigS[0], tStepEnd - tStepStart);
-    logging(LOG_INFO, "LL [%7llu]  i=[%7llu] t=[%3ld]\n", p, i, tStepEnd - tStepStart);
+    logging(LOG_DEBUG, "LLT [%7llu]  i=[%7llu] s=[%7llu] s0=[%20llu] t=[%3ld]\n", p, i, getBits(bigS), bigS[0], tStepEnd - tStepStart);
+    logging(LOG_INFO, "LLT [%7llu]  i=[%7llu] t=[%3ld]\n", p, i, tStepEnd - tStepStart);
 
     if(i == p-2 && iszero(bigS)) {
       return 1;
@@ -407,7 +438,7 @@ uint64_t getBits(uint64_t * arr) {
   return nIndex*32 + nBits;
 }
 
-void LLmulmod(uint64_t * src, uint64_t * dst) {
+void LLTmulmod(uint64_t * src, uint64_t * dst) {
   set(bigA);
   set(bigB);
   copy(dst, bigA);
@@ -418,13 +449,13 @@ void LLmulmod(uint64_t * src, uint64_t * dst) {
   mod(bigC,dst);
 }
 
-void LLmethod(uint64_t * src, uint64_t * dst) {
+void LLTmethod(uint64_t * src, uint64_t * dst) {
   set(bigA);
   uint64_t nPartition = g_nMersenne + (4 - g_nMersenne%4);
   uint64_t nSubPart = nPartition/4;
   if(compare(dst, src) > 0) {
     set(dst);
-    logging(LOG_ERROR,"LLmethod error!\n");
+    logging(LOG_ERROR,"LLTmethod error!\n");
     return;
   }
 
@@ -1159,10 +1190,10 @@ void agent(int sock) {
       return;       
     case 0:
       g_nIsMain = 1;
-      logging(LOG_DEBUG, "This is parent process.\n");
+      logging(LOG_DEBUG, "This is parent process. pid=[%ld]\n", (long)getpid());
       break;
     default:
-      logging(LOG_DEBUG, "This is child process.\n");
+      logging(LOG_DEBUG, "This is child process. pid=[%ld]\n", (long)getpid());
       g_nChildProcessID = pid;
       memset(message, 0x00, MAX_SIZE);
       while((len=read(sock, message, MAX_SIZE)) != 0) {
@@ -1198,7 +1229,7 @@ void console() {
     int nCount = 0;
     int nMinMersenne = 0;
     for(int i = 0; i < g_nMaxMersenne; i++) {
-      if(getBit(i) == 1) {
+      if(getBit(i) == 1 && getKnownMersenne(i) == 0) {
         nCount++;
         if(nMinMersenne == 0) {
           nMinMersenne = i;
@@ -1206,10 +1237,10 @@ void console() {
       }
     }
     logging(LOG_INFO, "Candidate Count : [%d] (M%llu ~ M%llu)\n", nCount, g_nMinMersenne, g_nMaxMersenne);
-    logging(LOG_INFO, "Min Mersenne : [%d]\n", nMinMersenne);
+    logging(LOG_INFO, "Min Mersenne Candidate : [%d]\n", nMinMersenne);
 
     for(int i = 0; i < 1000; i++) {
-      if(getBit(i) == 1) {
+      if(getBit(i) == 1 && getKnownMersenne(i) == 0) {
         logging(LOG_DEBUG, "x"); 
       } else {
         logging(LOG_DEBUG, " ");
@@ -1420,14 +1451,13 @@ void initMersenne() {
     logging(LOG_DEBUG, "initMersenne From File\n");
     readBits();
   } else {
-    logging(LOG_DEBUG, "initMersenne From Process\n");
+    logging(LOG_DEBUG, "initMersenne From Process[%llu]~[%llu]\n", g_nMinMersenne, g_nMaxMersenne);
     for(uint64_t i = g_nMinMersenne; i < g_nMaxMersenne; i++) {
       if(isPrime(i)) {
         setBitOnly(i, MERSENNE_PRIME);
       }
     }
     writeBits();
-    logging(LOG_DEBUG, "writeBits complete!\n");
   }
   logging(LOG_DEBUG, "initMersenne End\n");
 }
@@ -1439,7 +1469,7 @@ void findMersenne() {
   // Except p=2 and check only odds
   // if Mersenne Prime is 2^p-1, p is 8k+1/-1.
   for(uint64_t p=g_nMinPrime; p < g_nMaxPrime; p+=2) {
-    if(getBit(p) == MERSENNE_NUMBER) {
+    if(getBit(p) == MERSENNE_NUMBER || getKnownMersenne(p) == 1) {
       continue;
     }
     int remain = p%8;
@@ -1496,14 +1526,14 @@ int isPrime(uint64_t num) {
   return 1;
 }
 
-// Search Mersenne Prime
+// TFM Mersenne Prime
 int isMersenne(uint64_t num) {
   uint64_t value = 1;
   for(uint64_t i=1; i < g_nMaxMersenne; i++) {
     value = (value+value) % num;
-    // value = (value << 1) - num;
+    //value = (value << 1) - num;
     if(value == 1 && i < 30 &&  pow(2, i) -1 == num) {
-        break;
+      break;
     } else {
       if(value == 1) {
         setBit(i, MERSENNE_NUMBER);
@@ -1515,6 +1545,8 @@ int isMersenne(uint64_t num) {
 }
 
 void readCommand(int argc, char ** argv) {
+  // if app was crashed, we clear a previous lock.
+  lock_leave();
   memset(g_achOptionPath, 0x00, MAX_SIZE);
 
   if(argv[1] == NULL) {
@@ -1530,8 +1562,8 @@ void readCommand(int argc, char ** argv) {
     g_nUseFFT = USE_NOFFT;
     g_nUseSocket = USE_DIRECT;
     g_nNoFile = 0;
-    g_nSearchProcessCount = 1;
-    g_nLLProcessCount = 1;
+    g_nTFMProcessCount = 1;
+    g_nLLTProcessCount = 1;
     g_nLogLevel = LOG_DEBUG;
   } else {
     strcpy(g_achOptionPath, argv[1]);
@@ -1548,16 +1580,13 @@ void readCommand(int argc, char ** argv) {
     g_nUseFFT = readConfigInteger("UseFFT");
     g_nUseSocket = readConfigInteger("UseSocket");
     g_nNoFile = readConfigInteger("NoFile");
-    g_nSearchProcessCount = readConfigInteger("SearchProcess");
-    g_nLLProcessCount = readConfigInteger("LLProcess");
+    g_nTFMProcessCount = readConfigInteger("TFMProcess");
+    g_nLLTProcessCount = readConfigInteger("LLTProcess");
     g_nLogLevel = readConfigInteger("LogLevel");
 
     logging(LOG_DEBUG, "COMMAND [%s]\n", argv[1]);
   }
   memset(mersenne, MERSENNE_NUMBER, sizeof(uint64_t)*(g_nMaxMersenne/64 + 1));
-
-  writeBits();
-  readBits();
 }
 
 int readConfigInteger(char *pKey) {
@@ -1600,11 +1629,10 @@ void readBits() {
       //logging(LOG_DEBUG, "read size=[%d]\n", size);
       if(size <= 0) break;
       memcpy(mersenne+pos,buff, size);
-      pos += size;
+      pos += (size/sizeof(uint64_t));
     }
     fclose(fp);
   }
-  logging(LOG_DEBUG, "read size=[%d]\n", pos);
   lock_leave();
 }
 
@@ -1615,16 +1643,15 @@ void writeBits() {
   int pos = 0;
   int size = 0;
   if((fp = fopen(MERSENNE_FILE_NAME, "w")) != NULL ) {
-    for(int i = 0; i < (g_nMaxMersenne/64 + 1)/MAX_SIZE + 1;i++) {
+    for(int i = 0; i < (g_nMaxMersenne/64 + 1)/(MAX_SIZE/sizeof(uint64_t)) + 1;i++) {
       memset(buff, 0x00, MAX_SIZE);
       memcpy(buff, mersenne+pos, MAX_SIZE);
       size = fwrite(&buff, 1, MAX_SIZE, fp);
       if(size <= 0) break;
-      pos += size;
+      pos += (size/sizeof(uint64_t));
     }
     fclose(fp);
   }
-  logging(LOG_DEBUG, "write size=[%d]\n", pos);
   lock_leave();
 }
 
@@ -1643,7 +1670,7 @@ void readDB() {
       size = fread(&buff, 1, MAX_SIZE, fp);
       if(size <= 0) break;
       memcpy(mersenne+pos,buff, size);
-      pos += size;
+      pos += (size/sizeof(uint64_t));
     }
     fclose(fp);
   }
@@ -1657,12 +1684,12 @@ void writeDB() {
   int pos = 0;
   int size = 0;
   if((fp = fopen(DB_FILE_NAME, "w")) != NULL ) {
-    for(int i = 0; i < (g_nMaxMersenne/64 + 1)/MAX_SIZE + 1;i++) {
+    for(int i = 0; i < (g_nMaxMersenne/64 + 1)/(MAX_SIZE/sizeof(uint64_t)) + 1;i++) {
       memset(buff, 0x00, MAX_SIZE);
       memcpy(buff, mersenne+pos, MAX_SIZE);
       size = fwrite(&buff, 1, MAX_SIZE, fp);
       if(size <= 0) break;
-      pos += size;
+      pos += (size/sizeof(uint64_t));
     }
     fclose(fp);
   }
@@ -1712,7 +1739,7 @@ int getKnownMersenne(int number) {
 int getCandidateCount() {
   int nCount = 0;
   for(int i = 0; i < g_nMaxMersenne; i++) {
-    if(getBit(i) == 1) {
+    if(getBit(i) == 1 && getKnownMersenne(i) == 0) {
       nCount++; 
     }
   }
@@ -1733,4 +1760,28 @@ void lock_enter() {
 
 void lock_leave() {
   unlink(LOCK_FILE_NAME);
+}
+
+void setStatus(char * pchStatus) {
+  FILE *fp = NULL;
+  if((fp = fopen(STATUS_FILE_NAME, "w")) != NULL ) {
+    char buff[MAX_SIZE];
+    memset(buff, 0x00, MAX_SIZE);
+    sprintf(buff, "%s", pchStatus);
+    fwrite(&buff, 1, MAX_SIZE, fp);
+    fclose(fp);
+  }
+}
+
+void getStatus(char * pchStatus) {
+  FILE *fp = NULL;
+  if((fp = fopen(STATUS_FILE_NAME, "r")) != NULL ) {
+    char buff[MAX_SIZE];
+    memset(buff, 0x00, MAX_SIZE);
+    fread(&buff, 1, MAX_SIZE, fp);
+    strcpy(pchStatus, buff);
+    fclose(fp);
+  } else {
+    setStatus(STATUS_EXIT);
+  }
 }
