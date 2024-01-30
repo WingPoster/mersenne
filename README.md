@@ -5,7 +5,7 @@
 &nbsp;&nbsp;&nbsp;Therefore, this program uses an efficient strategy to find Mersenne primes. First, we use the TFM algorithm to find the prime factor p that is the prime factor of Mersenne, and then we find p that divides the Mersenne number. This procedure continues until p is 10 billion or more and excludes numbers with prime factors among Mersenne numbers from the list of possible primes because they cannot be Mersenne primes. However, Mersenne numbers with large prime factors are not easy to find using TFM. Therefore, the deterministic LLT method is used to determine whether a Mersenne number for which no prime factors have been found is prime. Although this is a time-consuming task, the prime number determination process is performed only on the Mersenne number list, excluding Mersenne numbers with primarily small prime factors, so the operation can be efficiently optimized. Running the two algorithms in parallel finds whether the Mersenne number is a Mersenne prime, starting from the smallest number, and Mersenne primes are found sequentially from the smallest number to the largest number.<br>
 
 The mathematical background knowledge used in this program is as follows:
-| Mathmetic Background | Reference |
+| Mathematical Background | Reference |
 | --- | --- |
 | Euler and Lagrange proved the following about Sophie Germain primes: if p ≡ 3 (mod 4) and p > 3, then the prime 2p+1 divides the Mersenne number Mp.  | https://t5k.org/glossary/page.php?sort=SophieGermainPrime |
 | The Lucas–Lehmer test (LLT) is a primality test for Mersenne numbers. The test was originally developed by Édouard Lucas in 1878 and subsequently proved by Derrick Henry Lehmer in 1930. | https://en.wikipedia.org/wiki/Lucas%E2%80%93Lehmer_primality_test|
