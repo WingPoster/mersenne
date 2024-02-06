@@ -22,10 +22,11 @@ The mathematical background knowledge used in this program is as follows:
 
 # Build
  Lastest Build by MacOS 12.7.2<br>
- ```gcc mersenne.c -o mersenne```
+ ```gcc-13 -fopenmp mersenne.c -o mersenne```
 
-# Run
+# Run & Kill
 ```./mersenne option.config```
+```./mersenne kill.config```
   
 # mersenne database
   The mersenne.dat file contains unresolved Mersenne numbers.
