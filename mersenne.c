@@ -19,6 +19,7 @@
 #include <stddef.h> // block encrypt
 #include <inttypes.h> // asymmetric encrypt
 #include <sys/stat.h>
+#include <complex.h>
 #include <omp.h>
 
 #ifdef _WIN32
@@ -29,41 +30,67 @@
 #include <unistd.h>
 #endif
 
-#define MAX_SIZE          1024
-#define MAX_PATH          1024
-#define MAX_NOISE         1024
-#define MAX_PROCESS       1024
-#define MAX_BUFF_SIZE     8096
-#define MAX_NUMBER       65535
-#define MAX_CHAR           256
-#define MAX_BIT              8
-#define MAX_DIFF           256 // min 512 difference
-#define MAX_PRIMES        1000
-#define MAX_NOISES         100
-#define MAX_DATE            26
-#define MAX_INTEGER   10000000
+#define MAX_SIZE            1024
+#define MAX_PATH            1024
+#define MAX_NOISE           1024
+#define MAX_PROCESS         1024
+#define MAX_BUFF_SIZE       8096
+#define MAX_NUMBER         65535
+#define MAX_CHAR             256
+#define MAX_BIT                8
+#define MAX_DIFF             256 // min 512 difference
+#define MAX_PRIMES          1000
+#define MAX_NOISES           100
+#define MAX_DATE              26
+#define MAX_INTEGER     10000000
 
 #define MIN_CANDIDATE         37
 #define MAX_CANDIDATE 1000000000
 #define MIN_PRIME             37
 #define MAX_PRIME     1000000000
-#define MAX_CHUNK           1024
+#define MAX_CHUNK           1024 
 
 #define MERSENNE_NUMBER        0
 #define MERSENNE_CANDIDATE     1
-#define KNOWN_MERSENNE 51
-//#define PI 3.14159265358979
+#define KNOWN_MERSENNE        51
 #define PI 3.14159265358979323846
 
-// Encryption
-#define blockSize 16
-#define KeySize 32
-#define KeyExpSize 240
-#define Nb 4
-#define Nk 8
-#define Nr 14
+#define EXPERIMENTAL
+#ifdef EXPERIMENTAL
+// AI Framework
+#define INPUT_SIZE 2
+#define HIDDEN_SIZE 100
+#define OUTPUT_SIZE 1
+#define LEARNING_RATE 0.1
+#define NUM_EPOCHS 10000
+#define NUM_THREADS 4
 
-#define E_VALUE 3 // 65535
+// Mersenne Twister constants
+#define MT_N 624
+#define MT_M 397
+#define MT_MATRIX_A 0x9908b0df
+#define MT_UPPER_MASK 0x80000000
+#define MT_LOWER_MASK 0x7fffffff
+
+// BigInt
+#define MAX_DIGITS 100000
+#define SIZE_INPUT_CHUNK MAX_DIGITS/8
+#define SIZE_OUTPUT_CHUNK MAX_DIGITS/12
+#define BITS_PER_DIGIT 32 // Assuming each digit is a 32-bit unsigned integer
+#define PRECISION 50
+#define BASE 10
+
+#endif // #ifdef EXPERIMENTAL
+
+// Encryption
+#define blockSize             16
+#define KeySize               32
+#define KeyExpSize           240
+#define Nb                     4
+#define Nk                     8
+#define Nr                    14
+
+#define E_VALUE                3 // 65535
 
 #define get_sb(num) (sb[(num)])
 #define get_sb_inv(num) (rsb[(num)])
@@ -76,70 +103,71 @@
       ((y>>4 & 1) * xtime(xtime(xtime(xtime(x))))))   \
 
 // Main Process
-#define RUN_ALL       0
-#define RUN_TFM       1
-#define RUN_LLT       2
-#define RUN_SERVER    3
-#define RUN_CONSOLE   4
-#define RUN_TEST      5
-#define RUN_KILL      6
+#define RUN_ALL           0
+#define RUN_TDM           1
+#define RUN_LLT           2
+#define RUN_SERVER        3
+#define RUN_CONSOLE       4
+#define RUN_TEST          5
+#define RUN_BENCHMARK     6
+#define RUN_KILL          7
 
-#define FINDER_NORMAL   0
-#define FINDER_NOMOD    1
-#define FINDER_SKIP     2
-#define FINDER_EULER    3
+#define FINDER_NORMAL     0
+#define FINDER_NOMOD      1
+#define FINDER_SKIP       2
+#define FINDER_EULER      3
 
 #define PROCESS_ID        3
 #define PROCESS_ID_CLASS  0
 #define PROCESS_ID_PID    1
 #define PROCESS_ID_STATUS 2
 
-#define PRIME_ID       3
-#define PRIME_ID_USE   0
-#define PRIME_ID_VALUE 1
-#define PRIME_ID_PRIME 2
+#define PRIME_ID          3
+#define PRIME_ID_USE      0
+#define PRIME_ID_VALUE    1
+#define PRIME_ID_PRIME    2
 
-#define ALGO_KJ       0
-#define ALGO_MULMOD   1
+#define ALGO_KJ           0
+#define ALGO_MULMOD       1
 
-#define USE_NOFFT     0 
-#define USE_FFT       1 
+#define USE_NOFFT         0 
+#define USE_FFT           1 
 
-#define USE_NOFILE    0
-#define USE_FILE      1 
+#define USE_NOFILE        0
+#define USE_FILE          1 
 
-#define USE_NOOMP     0 
-#define USE_OMP       1 
+#define USE_NOOMP         0 
+#define USE_OMP           1 
 
-#define USE_DIRECT    0 
-#define USE_SOCKET    1 
+#define USE_DIRECT        0 
+#define USE_SOCKET        1 
 
-#define LOG_NONE     0
-#define LOG_ERROR    1
-#define LOG_INFO     2
-#define LOG_DEBUG    3
-#define LOG_DUMP     4
-#define LOG_FILE     5
-#define LOG_NETWORK  6
-#define LOG_VERBOSE  7
+#define LOG_NONE          0
+#define LOG_ERROR         1
+#define LOG_INFO          2
+#define LOG_DEBUG         3
+#define LOG_DUMP          4
+#define LOG_FILE          5
+#define LOG_NETWORK       6
+#define LOG_VERBOSE       7
 
-#define TFM_PROCESS_NAME "TFM"
-#define LLT_PROCESS_NAME "LLT"
+#define TDM_PROCESS_NAME    "TDM"
+#define LLT_PROCESS_NAME    "LLT"
 
-#define PROCESS_FILE_NAME "process"
-#define STATUS_FILE_NAME "status"
-#define LOG_FILE_NAME "mersenne"
-#define LOCK_FILE_NAME "lock.pid"
-#define DB_FILE_NAME "db.dat"
+#define PROCESS_FILE_NAME   "process"
+#define STATUS_FILE_NAME    "status"
+#define LOG_FILE_NAME       "mersenne"
+#define LOCK_FILE_NAME      "lock.pid"
+#define DB_FILE_NAME        "db.dat"
 #define CANDIDATE_FILE_NAME "candidate.dat"
-#define LAST_FILE_NAME "candidate.last"
+#define LAST_FILE_NAME      "candidate.last"
 
-#define STATUS_INIT "init"
-#define STATUS_READY "ready"
-#define STATUS_RUN "run"
-#define STATUS_STOP "stop"
-#define STATUS_KILL "kill"
-#define STATUS_EXIT "exit"
+#define STATUS_INIT         "init"
+#define STATUS_READY        "ready"
+#define STATUS_RUN          "run"
+#define STATUS_STOP         "stop"
+#define STATUS_KILL         "kill"
+#define STATUS_EXIT         "exit"
 
 #if defined(_WIN32)
     #define PLATFORM_NAME "windows" // Windows
@@ -175,9 +203,40 @@
     #define PLATFORM_NAME "unknown" // Unknown Platform
 #endif
 
+#ifndef NOMINMAX
+
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+
+#endif  /* NOMINMAX */
+
 // Options
-#define USE_COMPRESSION
-#define USE_ENCRYPTION
+//#define USE_COMPRESSION
+//#define USE_ENCRYPTION
+
+#ifdef EXPERIMENTAL
+#define BIGINT
+#ifdef BIGINT
+// Structure to represent big integers
+typedef struct {
+    int digits[MAX_DIGITS]; // Array to store digits
+    int length;             // Number of digits
+} BigInt;
+#endif
+
+typedef struct {
+    uint64_t state[MT_N];
+    int index;
+} mt19937_state;
+
+mt19937_state mt_state;
+
+#endif
 
 // Data Structure
 typedef struct Node {
@@ -300,6 +359,7 @@ char g_pchPID[MAX_SIZE];
 int g_nChildProcessID = 0;
 
 // Configuration
+void initMT19937();
 void readCommand(int argc,char ** argv);
 char g_achOptionPath[MAX_SIZE];
 
@@ -310,14 +370,14 @@ uint64_t g_nMaxCandidate = MAX_CANDIDATE;
 uint64_t g_nMinPrime = MIN_PRIME;
 uint64_t g_nMaxPrime = MAX_PRIME;
 
-int g_nRunMode = RUN_TFM;
+int g_nRunMode = RUN_ALL;
 int g_nAlgorithm = ALGO_KJ;
 int g_nUseFFT = USE_FFT;
 int g_nUseOMP = USE_OMP;
 int g_nUseSocket = USE_SOCKET;
 int g_nNoFile = USE_FILE;
 int g_nFinder = FINDER_NORMAL;
-int g_nTFMProcessCount = 1;
+int g_nTDMProcessCount = 1;
 int g_nLLTProcessCount = 1;
 int g_nPort = 8080;
 int g_nLogFile = LOG_FILE;
@@ -329,7 +389,7 @@ int g_nDisplayEnd = MIN_CANDIDATE + MAX_SIZE;
 int g_nDisplayCount = MAX_SIZE;
 char g_achAddress[MAX_SIZE];
 
-// Big Integer
+// Mersenne Library
 uint64_t bits_max = 4294967296;
 uint64_t bigA[MAX_INTEGER];
 uint64_t bigB[MAX_INTEGER];
@@ -348,7 +408,6 @@ double yi[MAX_INTEGER];
 double ry[MAX_INTEGER];
 double ryi[MAX_INTEGER];
 
-// Big Integer Library
 void initInteger();
 void add(uint64_t * src, uint64_t * dst);
 void addop(uint64_t op, uint64_t * dst);
@@ -361,8 +420,12 @@ void mod(uint64_t * src, uint64_t * dst);
 void mul(uint64_t * src1, uint64_t * src2, uint64_t * dst);
 void mul_omp(uint64_t * src1, uint64_t * src2, uint64_t * dst);
 void mul_fft(uint64_t * src1,uint64_t * src2, uint64_t * dst);
+void mul_fft_internal(int * src1,int * src2, int * dst);
+void digits_to_array(const int digits[], int num_digits, uint64_t result[]);
+void array_to_digits(const uint64_t array[], int num_elements, int digits[]);
 void square(uint64_t * src,uint64_t * dst);
 void square_fft(uint64_t * src,uint64_t * dst);
+void square_fft_internal(int * src,int * dst);
 void mulop(uint64_t op, uint64_t * dst);
 void leftshift(uint64_t * src);
 void leftshiftop(uint64_t nBits, uint64_t * src);
@@ -371,6 +434,7 @@ void rightshiftop(uint64_t nBits, uint64_t * src);
 void PrintArray(uint64_t * src);
 void PrintBits(uint64_t * src);
 uint64_t getDigits(uint64_t * arr);
+int getDigitsBased10(int * arr);
 uint64_t getBits(uint64_t * arr);
 uint64_t getBitsop(uint64_t value);
 int compare(uint64_t * src, uint64_t * dst);
@@ -378,25 +442,154 @@ int compareop(uint64_t op, uint64_t * dst);
 bool iszero();
 void propa_carrier(uint64_t nIndex, uint64_t * dst);
 
+void test_get_primes();
+void primeDifferenceStatistics();
+
 // Zeta Function ( need to convert big number version )
-void zeta(long double s, long double si, long double * r, long double * ri);
-double _pi(int accuracy);
-double _log10(double x);
-double _log(double x);
-double _cos(double x, double y);
-double _sin(double x, double y, int iy);
+void test_riemann_zeta();
+void riemann_zeta(double p,double q,double * r,double * ri,int maxNumber);
+int euler_product(double p, double q, int maxNumber);
+bool isPrime_kj(uint64_t n, int maxNumber);
+double getPrimeCount_kj(int n);
+double primeDistribution(int n);
+
+void test_goldBach();
+void goldBach();
+
+#ifdef EXPERIMENTAL
+void test_zeta();
+complex double riemann_zeta_omp(complex double s);
+void test_prime_gap_distribution();
+void prime_gap_distribution(uint64_t start, uint64_t end);
+void test_geometric_series();
+complex double geometric_series(complex double first_term, complex double common_ratio, int num_terms);
+void fft(complex double *x, int n);
+void ifft(complex double *x, int n);
+void multiply_bigint_fft(BigInt *a, BigInt *b, BigInt *result);
+void square_bigint_fft(BigInt *a, BigInt *result);
+void fft_omp(complex double *x, int n);
+void ifft_omp(complex double *x, int n);
+void multiply_bigint_fft_omp(BigInt *a, BigInt *b, BigInt *result);
+void square_bigint_fft_omp(BigInt *a, BigInt *result);
+void test_fft();
+void mt19937_initialize(mt19937_state *state, uint32_t seed);
+uint32_t mt19937_extract_number(mt19937_state *state);
+uint64_t power(uint64_t base, uint64_t exp, uint64_t mod);
+uint64_t power_ll(uint64_t a, uint64_t b, uint64_t mod);
+bool miller_rabin(uint64_t n, int k);
+void test_miller_rabin();
+bool LehmannLucasPrimalityTest(uint64_t n, int num_trials);
+void test_montgomery_multiply();
+void montgomery_multiply_omp(BigInt *a, BigInt *b, BigInt *n, BigInt *n_inv, BigInt *r, BigInt *result);
+void montgomery_multiply(BigInt *a, BigInt *b, BigInt *n, BigInt *n_inv, BigInt *r, BigInt *result);
+void rsa_encrypt(BigInt *plaintext, BigInt *n, BigInt *e, BigInt *ciphertext);
+void rsa_decrypt(BigInt *ciphertext, BigInt *n, BigInt *d, BigInt *plaintext);
+bool test_lucaslehmer_omp(int exponent);
+void test_lucaslehmer();
+bool is_prime_aks(uint64_t n);
+bool is_prime_aks_omp(uint64_t n);
+bool is_prime_aks(uint64_t n);
+void test_aks();
+void test_count_primes();
+uint64_t count_primes_eratosthenes(uint64_t n);
+uint64_t count_primes_eratosthenes_omp(uint64_t n);
+uint64_t count_primes_riemann(uint64_t n);
+uint64_t count_primes_montgomery(uint64_t n);
+void fermat_primes(int n);
+void test_fermat_primes();
+double sigmoid(double x);
+double sigmoid_derivative(double x);
+void forward_pass(double input[INPUT_SIZE], double hidden[HIDDEN_SIZE], double output[OUTPUT_SIZE], double weights_ih[INPUT_SIZE][HIDDEN_SIZE], double weights_ho[HIDDEN_SIZE][OUTPUT_SIZE]);
+void backpropagation(double input[INPUT_SIZE], double hidden[HIDDEN_SIZE], double output[OUTPUT_SIZE], double target[OUTPUT_SIZE], double weights_ih[INPUT_SIZE][HIDDEN_SIZE], double weights_ho[HIDDEN_SIZE][OUTPUT_SIZE]);
+void test_nn();
+uint64_t factorial_mod_n(uint64_t n);
+int is_prime_wilson(uint64_t n);
+void test_wilson();
+void test_monteCarloSimulation();
+
+#ifdef BIGINT 
+void test_bigint();
+void free_bigint(BigInt *num);
+void mod_multiply(const BigInt *a, const BigInt *b, const BigInt *n, BigInt *result);
+int gcd_bigint(int a, int b);
+uint64_t binomial(uint64_t n, uint64_t k);
+uint64_t mod_exp(uint64_t base, uint64_t exp, uint64_t mod);
+
+// Function to initialize a BigInt with a string representation of a number
+void init_bigint_from_string(const char *num_str, BigInt *num);
+void init_bigint(BigInt *num);
+void init_bigint_value(BigInt *num, int value);
+void assign_bigint(BigInt *dest, const BigInt *src);
+void print_bigint(const BigInt *num);
+void print_bigint_desc(char * desc, const BigInt *num);
+
+// Function to compare two big integers (returns -1 if a < b, 0 if a == b, and 1 if a > b)
+int compare_bigint(const BigInt *a,const BigInt *b);
+
+// Function to add two big integers a and b and store the result in result
+void add_bigint(const BigInt *a, const BigInt *b, BigInt *result);
+void subtract_bigint(const BigInt *a,const BigInt *b, BigInt *result);
+
+// Function to multiply two big integers
+void multiply_bigint(const BigInt *a,const BigInt *b, BigInt *result);
+void multiply_scalar_bigint(const BigInt *a,const int scalar, BigInt *result);
+void divide_bigint(const BigInt *a, const BigInt *b, BigInt *quotient, BigInt *remainder);
+void divide_scalar_bigint(const BigInt *a, const int scalar, BigInt *quotient);
+
+// Function to perform modular arithmetic with big integers (a % b)
+void mod_bigint(const BigInt *a, const BigInt *b, BigInt *result);
+void square_bigint(const BigInt *a, BigInt *result);
+void sqrt_bigint(const BigInt *a, BigInt *result);
+void power_bigint(const BigInt *base, const int exponent, BigInt *result);
+
+// Function to compute factorial of n using big integers
+void factorial_bigint(const int n, BigInt *result);
+
+// Function to perform left shift operation on a BigInt by a specified number of bits
+void left_shift_bit_bigint(BigInt *num,const int shiftbit);
+
+// Function to perform right shift operation on a BigInt by a specified number of bits
+void right_shift_bit_bigint(BigInt *num,const int shiftbit);
+void left_shift_bigint(BigInt *num, const int shiftdigits);
+void right_shift_bigint(BigInt *num, const int shiftdigits);
+
+// Function to compute factorial
+double factorial(int n);
+
+// Function to compute sine using Taylor series expansion
+double sine(double x, int precision);
+
+// Function to compute cosine using Taylor series expansion
+double cosine(double x, int precision);
+
+// Function to compute natural logarithm using Taylor series expansion
+double logarithm(double x, int precision);
+
+// Function to compute base 10 logarithm using Taylor series expansion
+double logarithm_base10(double x, int precision);
+
+// Function to compute pi using Machin's formula and Taylor series expansion
+double pi(int precision);
+
+void multiply_pi(int *arr, int multiplier);
+void print_pi(int *arr);
+void compute_pi();
+#endif
+
+#endif
 
 // Main Process
 void runAll();
-void runTFM();
+void runTDM();
 void runLLT();
 void runServer();
 void runConsole();
 void runTest();
+void runBenchmark();
 
 // Mersenne Process
 void launchLLT();
-void launchTFM();
+void launchTDM();
 
 // LLT Process
 void setMersenneNumber(uint64_t p);
@@ -404,19 +597,24 @@ bool PrimalityTesting(uint64_t p);
 void LLTmethod(uint64_t * src, uint64_t *dst);
 void LLTmulmod(uint64_t * src, uint64_t *dst);
 
-// TFM Process
+// TDM Process
 void findMersenne();
 void findMersenneOMP();
 void findChunkNormal();
 void findChunkNomod();
 void findChunkSkip();
 void findChunkEuler();
-void setLastTFM(long p);
-long getLastTFM();
+void setLastTDM(long p);
+long getLastTDM();
 
 // Management Candidate
 void initCandidate();
 bool isPrime(uint64_t num);
+bool isPrimeNormal(uint64_t num);
+bool isPrimeFromDB(uint64_t num);
+#ifdef EXPERIMENTAL
+bool is_prime(uint64_t n);
+#endif
 bool isKnownMersenne(int number);
 void setNumber(uint64_t nIndex, int bit);
 bool setNumberCache(uint64_t nIndex, int bit);
@@ -446,8 +644,8 @@ void writeNoise(uint64_t maxPrime, uint32_t * noises);
 
 // System Process
 void updateProcess(char * pchClass, char * pchPID, char * pchStatus);
-void waitTFMReady();
-bool isTFMReady();
+void waitTDMReady();
+bool isTDMReady();
 void killAll();
 
 // Compression
@@ -486,6 +684,8 @@ int  getRightChild(int pos);
 void swapNodes(priorityQueue* pq, int pos1, int pos2);
 int  isEmpty(priorityQueue* pq);
 void printNode (PQNode* node);
+
+void test_compress();
 #endif
 
 // Encryption
@@ -516,39 +716,6 @@ uint64_t inverse(int a, int mod);
 int test_sign ();
 
 #endif
-// Math Function
-static const double
-ivln10hi  = 4.34294481878168880939e-01, /* 0x3fdbcb7b, 0x15200000 */
-ivln10lo  = 2.50829467116452752298e-11, /* 0x3dbb9438, 0xca9aadd5 */
-log10_2hi = 3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
-log10_2lo = 3.69423907715893078616e-13, /* 0x3D59FEF3, 0x11F12B36 */
-Lg1 = 6.666666666666735130e-01,  /* 3FE55555 55555593 */
-Lg2 = 3.999999999940941908e-01,  /* 3FD99999 9997FA04 */
-Lg3 = 2.857142874366239149e-01,  /* 3FD24924 94229359 */
-Lg4 = 2.222219843214978396e-01,  /* 3FCC71C5 1D8E78AF */
-Lg5 = 1.818357216161805012e-01,  /* 3FC74664 96CB03DE */
-Lg6 = 1.531383769920937332e-01,  /* 3FC39A09 D078C69F */
-Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
-
-static const double
-ln2_hi = 6.93147180369123816490e-01,  /* 3fe62e42 fee00000 */
-ln2_lo = 1.90821492927058770002e-10;  /* 3dea39ef 35793c76 */
-
-static const double
-C1  =  4.16666666666666019037e-02, /* 0x3FA55555, 0x5555554C */
-C2  = -1.38888888888741095749e-03, /* 0xBF56C16C, 0x16C15177 */
-C3  =  2.48015872894767294178e-05, /* 0x3EFA01A0, 0x19CB1590 */
-C4  = -2.75573143513906633035e-07, /* 0xBE927E4F, 0x809C52AD */
-C5  =  2.08757232129817482790e-09, /* 0x3E21EE9E, 0xBDB4B1C4 */
-C6  = -1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
-
-static const double
-S1  = -1.66666666666666324348e-01, /* 0xBFC55555, 0x55555549 */
-S2  =  8.33333333332248946124e-03, /* 0x3F811111, 0x1110F8A6 */
-S3  = -1.98412698298579493134e-04, /* 0xBF2A01A0, 0x19C161D5 */
-S4  =  2.75573137070700676789e-06, /* 0x3EC71DE3, 0x57B1FE7D */
-S5  = -2.50507602534068634195e-08, /* 0xBE5AE5E6, 0x8A2B9CEB */
-S6  =  1.58969099521155010221e-10; /* 0x3DE5D93A, 0x5ACFD57C */
 
 // Locking Protocol
 void lock_enter();
@@ -569,6 +736,9 @@ void error_handling(char *message);
 // Function Test Process
 void test();
 
+// Function Benchmark Process
+void benchmark();
+
 // System Console Process
 void console();
 
@@ -582,15 +752,23 @@ void logging(int level, const char *format, ...);
 void writeLog(char * buf);
 void sendLog(char *buf);
 
+// Testing
+void test_mersenne();
+
+// Benchmark
+void benchmark_multiply();
+
 // Process Entry Point
 int main(int argc, char ** argv) {
+  initMT19937();
+
   readCommand(argc, argv);
   logging(LOG_INFO, "Platform %s\n", PLATFORM_NAME);
 
   if(g_nRunMode == RUN_ALL) {
     runAll();
-  } else if(g_nRunMode == RUN_TFM) {
-    runTFM();
+  } else if(g_nRunMode == RUN_TDM) {
+    runTDM();
   } else if(g_nRunMode == RUN_LLT) {
     runLLT();
   } else if(g_nRunMode == RUN_SERVER) {
@@ -599,6 +777,8 @@ int main(int argc, char ** argv) {
     runConsole();
   } else if(g_nRunMode == RUN_TEST) {
     runTest();
+  } else if(g_nRunMode == RUN_BENCHMARK) {
+    runBenchmark();
   }else {
     logging(LOG_INFO, "Unknown Run Mode [%d].\n", g_nRunMode);
   }
@@ -607,26 +787,30 @@ int main(int argc, char ** argv) {
 void runAll() {
   logging(LOG_DEBUG, "This is launcher process. pid=[%ld]\n", (long)getpid()); 
   logging(LOG_INFO, "All process START!\n");
-  launchTFM();
+  launchTDM();
   launchLLT();
 }
 
-void runTFM(){
-  logging(LOG_INFO, "TFM Process START!\n");
+void runTDM(){
+  logging(LOG_INFO, "TDM Process START!\n");
 
   char achPID[MAX_SIZE];
   memset(achPID, 0x00, MAX_SIZE);
   sprintf(achPID, "%ld", (long)getpid());
-  updateProcess(TFM_PROCESS_NAME, achPID, STATUS_INIT);
+  updateProcess(TDM_PROCESS_NAME, achPID, STATUS_INIT);
   initCandidate();
-  updateProcess(TFM_PROCESS_NAME, achPID, STATUS_READY);
-  waitTFMReady();
+  updateProcess(TDM_PROCESS_NAME, achPID, STATUS_READY);
+  waitTDMReady();
 
-  logging(LOG_INFO, "runTFM : TFM Ready!\n");
+  logging(LOG_INFO, "runTDM : TDM Ready!\n");
   g_lstPrime = getPrimeList();
   g_lstCandidate = getCandidateList();
   g_pNextPrime = g_lstPrime;
-  findMersenne();
+  if(g_nUseOMP == USE_OMP) {
+    findMersenneOMP();
+  } else {
+    findMersenne();
+  }
   freeList(g_lstPrime);
   freeList(g_lstCandidate);
 }
@@ -638,13 +822,14 @@ void runLLT(){
   memset(achPID, 0x00, MAX_SIZE);
   sprintf(achPID, "%ld", (long)getpid());
   updateProcess(LLT_PROCESS_NAME, achPID, STATUS_INIT);
-  waitTFMReady();
+  waitTDMReady();
   updateProcess(LLT_PROCESS_NAME, achPID, STATUS_READY);
-  logging(LOG_INFO, "runLLT : TFM Ready!\n");
+  logging(LOG_INFO, "runLLT : TDM Ready!\n");
   readBits();
 
   if(g_nRunMode == RUN_ALL || g_nRunMode == RUN_LLT) {
     while(1) {
+      updateBits();
       g_nCandidate = g_nMinCandidate;
       for(int i = g_nMinCandidate; i < g_nMaxCandidate; i+=2) {
         if(isCandidate(i) && !isKnownMersenne(i)) {
@@ -656,7 +841,6 @@ void runLLT(){
       if(PrimalityTesting(g_nCandidate)) {
         logging(LOG_INFO, "2^%d - 1 is prime!!\n", g_nCandidate);
       } else {
-        readBits();
         setNumber(g_nCandidate, MERSENNE_NUMBER);
       }
     }
@@ -679,6 +863,11 @@ void runConsole() {
 void runTest() {
   logging(LOG_INFO, "Test Mode START!\n");
   test();
+}
+
+void runBenchmark() {
+  logging(LOG_INFO, "Benchmark Mode START!\n");
+  benchmark();
 }
 
 void launchLLT() {
@@ -721,28 +910,28 @@ void launchLLT() {
   }
 }
 
-void launchTFM() {
+void launchTDM() {
   pid_t pid;
 
   g_nSystemMinCandidate = g_nMinCandidate;
   g_nSystemMaxCandidate = g_nMaxCandidate;
 
-  for(int i = 1; i <= g_nTFMProcessCount; i++) {
+  for(int i = 1; i <= g_nTDMProcessCount; i++) {
     pid = fork();
 
     int nMinPrime = 0;
     int nMaxPrime = 0;
-    nMinPrime = g_nMinPrime + ((g_nMaxPrime - g_nMinPrime)/g_nTFMProcessCount)*(i-1);
-    if(i != g_nTFMProcessCount) {
-      nMaxPrime = g_nMinPrime + ((g_nMaxPrime - g_nMinPrime)/g_nTFMProcessCount)*i - 1;
+    nMinPrime = g_nMinPrime + ((g_nMaxPrime - g_nMinPrime)/g_nTDMProcessCount)*(i-1);
+    if(i != g_nTDMProcessCount) {
+      nMaxPrime = g_nMinPrime + ((g_nMaxPrime - g_nMinPrime)/g_nTDMProcessCount)*i - 1;
     } else {
       nMaxPrime = g_nMaxPrime;
     }
     int nMinCandidate = 0;
     int nMaxCandidate = 0;
-    nMinCandidate = g_nMinCandidate + ((g_nMaxCandidate - g_nMinCandidate)/g_nTFMProcessCount)*(i-1);
-    if(i != g_nTFMProcessCount) {
-      nMaxCandidate = g_nMinCandidate + ((g_nMaxCandidate - g_nMinCandidate)/g_nTFMProcessCount)*i - 1;
+    nMinCandidate = g_nMinCandidate + ((g_nMaxCandidate - g_nMinCandidate)/g_nTDMProcessCount)*(i-1);
+    if(i != g_nTDMProcessCount) {
+      nMaxCandidate = g_nMinCandidate + ((g_nMaxCandidate - g_nMinCandidate)/g_nTDMProcessCount)*i - 1;
     } else {
       nMaxCandidate = g_nMaxCandidate;
     }
@@ -761,13 +950,13 @@ void launchTFM() {
         logging(LOG_DEBUG, "fork failed, reason=failed create child process.\n");
         return;
       case 0:
-        logging(LOG_DEBUG, "This is child TFM process. pid=[%ld]\n", (long)getpid());
+        logging(LOG_DEBUG, "This is child TDM process. pid=[%ld]\n", (long)getpid());
         g_nChildProcessID = pid;
         g_nMinPrime = nMinPrime;
         g_nMaxPrime = nMaxPrime;
         g_nMinCandidate = nMinCandidate;
         g_nMaxCandidate = nMaxCandidate;
-        runTFM();
+        runTDM();
         logging(LOG_DEBUG, "Child process id=[%d]\n", pid);
         break;
       default:
@@ -982,12 +1171,12 @@ void LLTmethod(uint64_t * src, uint64_t * dst) {
 }
 
 void mul(uint64_t * src1, uint64_t * src2, uint64_t * dst) {
-  if(g_nUseOMP == USE_OMP) {
-    mul_omp(src1,src2,dst);
-    return;
-  }
   if(g_nUseFFT == USE_FFT) {
     mul_fft(src1,src2,dst);
+    return;
+  }
+  if(g_nUseOMP == USE_OMP) {
+    mul_omp(src1,src2,dst);
     return;
   }
   uint64_t nIndexS1 = getDigits(src1);
@@ -1017,7 +1206,8 @@ void mul_omp(uint64_t * src1, uint64_t * src2, uint64_t * dst) {
 
   set(dst);
 
-  #pragma omp parallel for num_threads(10)
+  //#pragma omp parallel for num_threads(10)
+  #pragma omp parallel for shared(dst)
   for(uint64_t i = 0; i <= nIndexS1; i++) {
     for(uint64_t j = 0; j <= nIndexS2; j++) {
       value = src1[i]*src2[j];
@@ -1035,20 +1225,169 @@ void square(uint64_t * src, uint64_t *dst) {
     square_fft(src, dst);
     return;
   }
+  if(g_nUseOMP == USE_OMP) {
+    //square_omp(src, dst);
+    return;
+  }
   mul(src, src, dst);
 }
 
-void mul_fft(uint64_t * src1,uint64_t * src2, uint64_t * dst) {
-  int size = getDigits(src1) + getDigits(src2) +1;
+void init_bigint_from_arr(BigInt *num, const uint64_t *arr, int length) {
+  init_bigint(num); // Initialize the BigInt
+  array_to_digits(arr, length, num->digits);
+  for(int i = MAX_DIGITS -1 ; i >= 0; i--) {
+    if(num->digits[i] != 0) {
+      num->length = i + 2;
+      break;
+    }
+  }
+}
 
-  memset(x, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(xi, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(rx, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(rxi, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(y, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(yi, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(ry, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(ryi, 0x00, sizeof(double)*MAX_INTEGER);
+void array_from_bigint(uint64_t *arr,const BigInt *num) {
+  digits_to_array(num->digits, num->length, arr);
+}
+
+void digits_to_array(const int digits[], int num_digits, uint64_t* result) {
+    int nChunk = SIZE_INPUT_CHUNK;
+    int index = nChunk - 1; // Start storing from the most significant end of the result array
+
+    // Initialize the result array with zeros
+    for (int i = 0; i < nChunk; i++) {
+        result[i] = 0;
+    }
+
+    for (int i = 0; i < num_digits; i++) {
+        // Multiply the current result by 10 and add the current digit
+        for (int j = nChunk - 1; j >= index; j--) {
+            result[j] *= BASE;
+        }
+        result[index] += digits[i];
+
+        // Perform carry propagation if necessary
+        for (int j = nChunk - 1; j > 0; j--) {
+            if (result[j] >= bits_max) { // If the current element exceeds the base (2^32), propagate the carry
+                result[j - 1] += (result[j] / (bits_max));
+                result[j] %= (bits_max);
+            }
+        }
+    }
+    for(int i = 0; i < nChunk/2; i++) {
+      if(result[i] != result[nChunk-i-1]) {
+        uint64_t temp = 0;
+        temp = result[i];
+        result[i] = result[nChunk-i-1];
+        result[nChunk-i-1] = temp;
+      }
+    }
+}
+
+void array_to_digits(const uint64_t array[], int num_elements, int digits[]) {
+  int nChunk = SIZE_OUTPUT_CHUNK;
+  uint64_t arr[nChunk];
+  memset(arr, 0x00, sizeof(uint64_t)*nChunk);
+  memcpy(arr, array, sizeof(uint64_t)*nChunk);
+  // Start from the most significant end of the array
+  int index = nChunk-1;
+
+  // Initialize the digits array with zeros
+  for (int i = 0; i < MAX_DIGITS; i++) {
+    digits[i] = 0;
+  }
+
+  while (arr[index] <= 0) index--;
+  if(index <= 0) {
+    return;
+  }
+  int dpos = 0;
+  int remainder = 0;
+  // Loop through the array and extract digits
+  for (int i = 0; i < num_elements; i++) {
+    // Extract each digit by performing modulo 10
+    while (arr[index] > 0) {
+      if(index != 0) {
+        remainder = arr[index] % BASE;
+        arr[index]-=remainder;
+      }
+      // max int : 4294967296
+      char temp[10];
+      int pos = 0;
+      memset(temp, 0x00, 10);
+      while(arr[index] > 0) {
+        temp[pos] = arr[index] % BASE;
+        arr[index] /= BASE;
+        pos++;
+      }
+      for(int j = pos -1; j >= 0; j--) {
+        digits[dpos++] = temp[j];
+      }
+      if(index != 0) {
+        arr[index-1] += remainder*bits_max;
+      }
+    }
+    index--;
+  }
+  for(int i = 0; i < dpos/2; i++) {
+    if(digits[i] != digits[dpos-i-1]) {
+      uint64_t temp = 0;
+      temp = digits[i];
+      digits[i] = digits[dpos-i-1];
+      digits[dpos-i-1] = temp;
+    }
+  }
+}
+
+void mul_fft(uint64_t * src1, uint64_t * src2, uint64_t * dst) {
+  if(g_nUseOMP == USE_OMP) {
+    //mul_fft_omp(src1,src2,dst);
+    return;
+  }
+  BigInt bigA, bigB, bigResult;
+  uint64_t temp[SIZE_INPUT_CHUNK];
+  int nChunk = SIZE_OUTPUT_CHUNK;
+  int nCountA = (getDigits(src1)+1)/nChunk + 1;
+  int nCountB = (getDigits(src2)+1)/nChunk + 1; 
+
+  for(int i = 0; i < nCountA; i++) {
+    for(int j = 0; j < nCountB; j++) {
+      if(i == nCountA - 1) {
+        init_bigint_from_arr(&bigA, src1+i*nChunk*8, (getDigits(src1)+1)%nChunk);
+      } else {
+        init_bigint_from_arr(&bigA, src1+i*nChunk*8, nChunk);
+      }
+      if(j == nCountB - 1) {
+        init_bigint_from_arr(&bigB, src2+j*nChunk*8, (getDigits(src2)+1)%nChunk);
+      } else {
+        init_bigint_from_arr(&bigB, src2+j*nChunk*8, nChunk);
+      }
+      init_bigint(&bigResult);
+      mul_fft_internal(bigA.digits, bigB.digits, bigResult.digits);
+      bigResult.length = getDigitsBased10(bigResult.digits);
+      memset(temp, 0x00, sizeof(uint64_t)*nChunk);
+      array_from_bigint(temp, &bigResult);
+      for(int k = 0; k < SIZE_INPUT_CHUNK + 1; k++) {
+        dst[i*nChunk+k] += temp[k];
+      }
+    }
+  }
+  for(int i = 0; i < getDigits(dst) + 1; i++) {
+    if(dst[i] >= bits_max) {
+      dst[i+1]+= dst[i] / bits_max;
+      dst[i]= dst[i] % bits_max;
+    }
+  }
+}
+
+void mul_fft_internal(int * src1,int * src2, int * dst) {
+  int size = getDigitsBased10(src1) + getDigitsBased10(src2) +1;
+
+  memset(x, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(xi, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(rx, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(rxi, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(y, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(yi, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(ry, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(ryi, 0x00, sizeof(double)*MAX_DIGITS);
 
   int n = 1;
   while( n < size) {
@@ -1123,8 +1462,8 @@ void mul_fft(uint64_t * src1,uint64_t * src2, uint64_t * dst) {
     }
   }
 
-  memset(x, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(xi, 0x00, sizeof(double)*MAX_INTEGER);
+  memset(x, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(xi, 0x00, sizeof(double)*MAX_DIGITS);
 
   for (int i = 0; i < size; ++i) {
     x[i] = rx[i]*ry[i] - rxi[i]*ryi[i];
@@ -1171,18 +1510,60 @@ void mul_fft(uint64_t * src1,uint64_t * src2, uint64_t * dst) {
   }
 
   for(int i = 0; i < size; i++) {
-    uint64_t value = dst[i] + (uint64_t)llround(rx[i]);
-    dst[i] = value % bits_max;
-    dst[i+1] = value / bits_max;
+    int value = dst[i] + (int)llround(rx[i]);
+    dst[i] = value % BASE;
+    dst[i+1] = value / BASE;
   }
 }
 
 void square_fft(uint64_t * src, uint64_t * dst) {
-  int size = getDigits(src)*2 + 1;
-  memset(x, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(xi, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(rx, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(rxi, 0x00, sizeof(double)*MAX_INTEGER);
+  if(g_nUseOMP == USE_OMP) {
+    //square_fft_omp(src1,src2,dst);
+    return;
+  }
+  BigInt bigA, bigB, bigResult;
+  uint64_t temp[SIZE_INPUT_CHUNK];
+  int nChunk = SIZE_OUTPUT_CHUNK;
+  int nCountA = (getDigits(src)+1)/nChunk + 1;
+  int nCountB = (getDigits(src)+1)/nChunk + 1;
+
+  assign_bigint(&bigA, &bigB);
+  for(int i = 0; i < nCountA; i++) {
+    for(int j = 0; j < nCountB; j++) {
+      if(i == nCountA - 1) {
+        init_bigint_from_arr(&bigA, src+i*nChunk*8, (getDigits(src)+1)%nChunk);
+      } else {
+        init_bigint_from_arr(&bigA, src+i*nChunk*8, nChunk);
+      }
+      if(j == nCountB - 1) {
+        init_bigint_from_arr(&bigB, src+j*nChunk*8, (getDigits(src)+1)%nChunk);
+      } else {
+        init_bigint_from_arr(&bigB, src+j*nChunk*8, nChunk);
+      }
+      init_bigint(&bigResult);
+      square_fft_internal(bigA.digits, bigResult.digits);
+      bigResult.length = getDigitsBased10(bigResult.digits);
+      memset(temp, 0x00, sizeof(uint64_t)*nChunk);
+      array_from_bigint(temp, &bigResult);
+      for(int k = 0; k < SIZE_INPUT_CHUNK + 1; k++) {
+        dst[i*nChunk+k] += temp[k];
+      }
+    }
+  }
+  for(int i = 0; i < getDigits(dst) + 1; i++) {
+    if(dst[i] >= bits_max) {
+      dst[i+1]+= dst[i] / bits_max;
+      dst[i]= dst[i] % bits_max;
+    }
+  }
+}
+
+void square_fft_internal(int * src, int * dst) {
+  int size = getDigitsBased10(src)*2 + 1;
+  memset(x, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(xi, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(rx, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(rxi, 0x00, sizeof(double)*MAX_DIGITS);
 
   int n = 1;
   while( n < size) {
@@ -1222,8 +1603,8 @@ void square_fft(uint64_t * src, uint64_t * dst) {
     }
   }
 
-  memset(x, 0x00, sizeof(double)*MAX_INTEGER);
-  memset(xi, 0x00, sizeof(double)*MAX_INTEGER);
+  memset(x, 0x00, sizeof(double)*MAX_DIGITS);
+  memset(xi, 0x00, sizeof(double)*MAX_DIGITS);
 
   for (int i = 0; i < size; ++i) {
     x[i] = rx[i]*rx[i] - rxi[i]*rxi[i];
@@ -1269,13 +1650,13 @@ void square_fft(uint64_t * src, uint64_t * dst) {
     rxi[i] /= n;
   }
 
-  memset(dst, 0x00, sizeof(uint64_t)*MAX_INTEGER);
+  memset(dst, 0x00, sizeof(int)*MAX_DIGITS);
 
   // compute carry
   for(int i = 0; i < size; i++) {
-    uint64_t value = dst[i] + (uint64_t)llround(rx[i]);
-    dst[i] = value % bits_max;
-    dst[i+1] = value / bits_max;
+    int value = dst[i] + (int)llround(rx[i]);
+    dst[i] = value % BASE;
+    dst[i+1] = value / BASE;
   }
 }
 
@@ -1571,6 +1952,15 @@ uint64_t getDigits(uint64_t * arr) {
   return 0; 
 }
 
+int getDigitsBased10(int * arr) {
+  for(int i = MAX_DIGITS-1; i != -1; i--) {
+    if(arr[i] != 0) {
+      return i;
+    }
+  }  
+  return 0; 
+}
+
 void setMersenneNumber(uint64_t p) {
   set(bigC);
   int qt = (int)((p-1)/32);
@@ -1705,7 +2095,7 @@ void console() {
     logging(LOG_INFO, "Total Candidate Count : [%d] (M%llu ~ M%llu)\n", nCount, g_nMinCandidate, g_nMaxCandidate);
     logging(LOG_INFO, "Min Mersenne Candidate : [%d]\n", nMinCandidate);
     if(isSingleProcess()) {
-      logging(LOG_INFO, "TFM Last Prime : [%ld]\n", getLastTFM());
+      logging(LOG_INFO, "TDM Last Prime : [%ld]\n", getLastTDM());
     }
 
     for(int i = g_nDisplayStart; i < g_nDisplayEnd; i++) {
@@ -1753,9 +2143,167 @@ void console() {
   }
 }
 
+void benchmark() {
+  logging(LOG_INFO, "benchmark_multiply begin\n");
+  benchmark_multiply();
+  logging(LOG_INFO, "benchmark_multiply end\n");
+}
+
 void test() {
+
+  logging(LOG_INFO, "test_mersenne begin\n");
+  test_mersenne();
+  logging(LOG_INFO, "test_mersenne end\n");
+
+  logging(LOG_INFO, "test_get_primes begin\n");
+  test_get_primes();
+  logging(LOG_INFO, "test_get_primes end\n");
+
+#ifdef USE_COMPRESSION
+  logging(LOG_INFO, "test_compress begin\n");
+  test_compress();
+  logging(LOG_INFO, "test_compress end\n");
+#endif
+
+#ifdef USE_ENCRYPTION
+  logging(LOG_INFO, "test_sign begin\n");
+  test_sign();
+  logging(LOG_INFO, "test_sign end\n");
+#endif
+
+#ifdef EXPERIMENTAL
+  logging(LOG_INFO, "test_riemann_zeta begin\n");
+  test_riemann_zeta();
+  logging(LOG_INFO, "test_riemann_zeta end\n");
+
+  logging(LOG_INFO, "test_zeta begin\n");
+  test_zeta();
+  logging(LOG_INFO, "test_zeta end\n");
+
+  logging(LOG_INFO, "test_goldBach begin\n");
+  test_goldBach();
+  logging(LOG_INFO, "test_goldBach end\n");
+
+  logging(LOG_INFO, "test_prime_gap_distribution begin\n");
+  test_prime_gap_distribution();
+  logging(LOG_INFO, "test_prime_gap_distribution end\n");
+
+  logging(LOG_INFO, "test_geometric_series begin\n");
+  test_geometric_series();
+  logging(LOG_INFO, "test_geometric_series end\n");
+
+  logging(LOG_INFO, "test_fft begin\n");
+  test_fft();
+  logging(LOG_INFO, "test_fft end\n");
+
+  logging(LOG_INFO, "test_miller_rabin begin\n");
+  test_miller_rabin();
+  logging(LOG_INFO, "test_miller_rabin end\n");
+
+  logging(LOG_INFO, "test_lucaslehmer begin\n");
+  test_lucaslehmer();
+  logging(LOG_INFO, "test_lucaslehmer end\n");
+
+  logging(LOG_INFO, "test_aks begin\n");
+  test_aks();
+  logging(LOG_INFO, "test_aks end\n");
+
+  logging(LOG_INFO, "test_montgomery_multiply begin\n");
+  test_montgomery_multiply();
+  logging(LOG_INFO, "test_montgomery_multiply end\n");
+
+  logging(LOG_INFO, "test_count_primes begin\n");
+  test_count_primes();
+  logging(LOG_INFO, "test_count_primes end\n");
+
+  logging(LOG_INFO, "test_fermat_primes begin\n");
+  test_fermat_primes();
+  logging(LOG_INFO, "test_fermat_primes end\n");
+
+  logging(LOG_INFO, "test_nn begin\n");
+  test_nn();
+  logging(LOG_INFO, "test_nn end\n");
+
+  logging(LOG_INFO, "test_wilson begin\n");
+  test_wilson();
+  logging(LOG_INFO, "test_winson end\n"); 
+
+  logging(LOG_INFO, "test_monteCarloSimulation begin\n");
+  test_monteCarloSimulation();
+  logging(LOG_INFO, "test_montenCarloSimulation end\n"); 
+
+#ifdef BIGINT
+  logging(LOG_INFO, "test_bigint begin\n");
+  test_bigint();
+  logging(LOG_INFO, "test_bigint end\n"); 
+#endif // #ifdef BIGINT
+
+#endif
+} 
+
+void benchmark_multiply() {
+  BigInt a, b, result;
+  int n = MAX_DIGITS/2;
+  int un = MAX_INTEGER/(2*32);
+  time_t start = 0;
   initInteger();
-  PrintArray(bigS);
+
+  logging(LOG_DEBUG, "multiply benchmark test digits[%d] bits[%d]\n", n, un);
+
+  set(bigA);
+  set(bigB);
+  set(bigS);
+  for(int i = 0; i < un + 1; i++) {
+    bigA[i] = rand() % bits_max;
+    bigB[i] = rand() % bits_max;
+  }
+
+  g_nUseOMP = USE_NOOMP;
+  g_nUseFFT = USE_NOFFT;
+  start = time(NULL);
+  mul(bigA,bigB,bigS);
+  logging(LOG_DEBUG, "Result : ");
+  printf("multiply time [%ld]\n", time(NULL) - start);
+
+  set(bigA);
+  set(bigB);
+  set(bigS);
+
+  logging(LOG_DEBUG, "multiply with OMP\n");
+  g_nUseOMP = USE_OMP;
+  g_nUseFFT = USE_NOFFT;
+  start = time(NULL);
+  mul(bigA,bigB,bigS);
+  logging(LOG_DEBUG, "Result : ");
+  printf("multiply OMP time [%ld]\n", time(NULL) - start);
+
+  set(bigA);
+  set(bigB);
+  set(bigS);
+
+  logging(LOG_DEBUG, "multiply with FFT\n");
+  g_nUseOMP = USE_NOOMP;
+  g_nUseFFT = USE_FFT;
+  start = time(NULL);
+  mul(bigA,bigB,bigS);
+  logging(LOG_DEBUG, "Result : ");
+  printf("multiply FFT time [%ld]\n", time(NULL) - start);
+
+  set(bigA);
+  set(bigB);
+  set(bigS);
+
+  logging(LOG_DEBUG, "multiply with FFT + OMP\n");
+  g_nUseOMP = USE_OMP;
+  g_nUseFFT = USE_FFT;
+  start = time(NULL);
+  mul(bigA,bigB,bigS);
+  logging(LOG_DEBUG, "Result : ");
+  printf("multiply FFT+OMP time [%ld]\n", time(NULL) - start);
+}
+
+void test_mersenne() {
+  initInteger();
 
   logging(LOG_DEBUG, "addop test + 2\n");
   addop(2, bigS);
@@ -1926,6 +2474,7 @@ void logging(int level, const char *format, ...) {
 }
 
 void initCandidate() {
+  int nCount = 0;
   logging(LOG_DEBUG, "initCandidate Begin\n");
   if(g_nNoFile == USE_FILE && access(CANDIDATE_FILE_NAME, F_OK) == 0) {
     logging(LOG_DEBUG, "initCandidate From File Min[%llu]~Max[%llu]\n", g_nMinCandidate, g_nMaxCandidate);
@@ -1935,11 +2484,12 @@ void initCandidate() {
     for(uint64_t i = g_nMinCandidate; i < g_nMaxCandidate; i+=2) {
       if(isPrime(i)) {
         setNumberCache(i, MERSENNE_CANDIDATE);
+        nCount++;
       }
     }
     updateBits();
   }
-  logging(LOG_DEBUG, "initCandidate End\n");
+  logging(LOG_DEBUG, "initCandidate End pid=[%ld] [%d]\n",getpid(),  nCount);
 }
 
 void findMersenne() {
@@ -1962,6 +2512,7 @@ void findMersenne() {
       default:
         break;
     }
+    updateBits();
     PrintCandidateCount();
   }
 }
@@ -1992,7 +2543,7 @@ void findChunkNormal() {
   uint64_t chunk[g_nChunk][PRIME_ID];
   memset(chunk, 0x00, PRIME_ID*g_nChunk*sizeof(uint64_t));
   int count = getNextChunk(chunk);
-
+  int nCount = 0;
   struct Node* pNextCandidate = g_lstCandidate;
   while(pNextCandidate) {
     int exponent = pNextCandidate->data;
@@ -2009,7 +2560,20 @@ void findChunkNormal() {
         }
       }
     }
-    writeBits();
+    nCount++;
+    if(nCount % 10000 == 0) {
+      int prime = 0;
+      for(int i = 0; i < count; i++) {
+        if(chunk[i][PRIME_ID_USE] != 0) {
+          prime++;
+        }
+      }
+      if(prime == 0) {
+        //logging(LOG_DEBUG, "findChunkSkip no live prime End\n");
+        return;
+      }
+      //logging(LOG_DEBUG, "findChunkSkip [%llu] Candidate Count [%d] live[%d]\n", pNextCandidate->data, nCount, prime);
+    }
     oldexponent = exponent;
     pNextCandidate=pNextCandidate->next;
   }
@@ -2019,7 +2583,7 @@ void findChunkNomod() {
   uint64_t chunk[g_nChunk][PRIME_ID];
   memset(chunk, 0x00, PRIME_ID*g_nChunk*sizeof(uint64_t));
   int count = getNextChunk(chunk);
-
+  int nCount = 0;
   struct Node* pNextCandidate = g_lstCandidate;
   while(pNextCandidate) {
     int exponent = pNextCandidate->data;
@@ -2035,7 +2599,20 @@ void findChunkNomod() {
         }
       }
     }
-    writeBits();
+    nCount++;
+    if(nCount % 10000 == 0) {
+      int prime = 0;
+      for(int i = 0; i < count; i++) {
+        if(chunk[i][PRIME_ID_USE] != 0) {
+          prime++;
+        }
+      }
+      if(prime == 0) {
+        //logging(LOG_DEBUG, "findChunkSkip no live prime End\n");
+        return;
+      }
+      //logging(LOG_DEBUG, "findChunkSkip [%llu] Candidate Count [%d] live[%d]\n", pNextCandidate->data, nCount, prime);
+    }
     oldexponent = exponent;
     pNextCandidate=pNextCandidate->next;
   }
@@ -2044,7 +2621,10 @@ void findChunkNomod() {
 void findChunkSkip() {
   uint64_t chunk[g_nChunk][PRIME_ID];
   memset(chunk, 0x00, PRIME_ID*g_nChunk*sizeof(uint64_t));
+  logging(LOG_DEBUG, "findChunkSikp Start\n");
   int count = getNextChunk(chunk);
+  //logging(LOG_DEBUG, "findChunkSikp ChunkCount[%d]\n", count);
+  int nCount = 0;
   struct Node* pNextCandidate = g_lstCandidate;
   while(pNextCandidate) {
     int exponent = pNextCandidate->data;
@@ -2067,16 +2647,31 @@ void findChunkSkip() {
         for(int k=0; k < shift; k++) {
           if(chunk[j][PRIME_ID_VALUE] == comparer) {
             setNumberCache(pNextCandidate->data, MERSENNE_NUMBER);
+            //logging(LOG_DEBUG, "findChunkSikp setNumberCache[%llu] prime[%llu]\n", pNextCandidate->data, chunk[j][PRIME_ID_PRIME]);
             chunk[j][PRIME_ID_USE] = 0;
           }
           comparer <<= 1;
         }
       }
     }
-    writeBits();
+    nCount++;
+    if(nCount % 10000 == 0) {
+      int prime = 0;
+      for(int i = 0; i < count; i++) {
+        if(chunk[i][PRIME_ID_USE] != 0) {
+          prime++; 
+        }
+      }
+      if(prime == 0) {
+        //logging(LOG_DEBUG, "findChunkSkip no live prime End\n");
+        return;
+      }
+      //logging(LOG_DEBUG, "findChunkSkip [%llu] Candidate Count [%d] live[%d]\n", pNextCandidate->data, nCount, prime);
+    }
     oldexponent=pNextCandidate->data;
     pNextCandidate=pNextCandidate->next;
   }
+  logging(LOG_DEBUG, "findChunkSkip End\n");
 }
 
 void findChunkEuler() {
@@ -2109,14 +2704,13 @@ void findChunkEuler() {
         }
       }
     }
-    writeBits();
     oldexponent = pNextCandidate->data;
     pNextCandidate=pNextCandidate->next;
   }
 }
 
 struct Node* getPrimeList() {
-  g_nMinPrime = getLastTFM();
+  g_nMinPrime = getLastTDM();
 
   struct Node* prime = (struct Node*)malloc(sizeof(struct Node*));
   prime->data = g_nMinPrime;
@@ -2148,12 +2742,14 @@ struct Node* getPrimeList() {
 }
 
 struct Node* getCandidateList() {
+
+  readBits();
   struct Node* candidate = (struct Node*)malloc(sizeof(struct Node *));
-  candidate->data = g_nMinCandidate;
+  candidate->data = g_nSystemMinCandidate;
   candidate->next = NULL;
 
   struct Node* pNextCandidate = candidate;
-  for(int i = g_nMinCandidate + 2; i < g_nMaxCandidate; i+=2) {
+  for(int i = g_nSystemMinCandidate + 2; i < g_nSystemMaxCandidate; i+=2) {
     if(isCandidate(i) && !isKnownMersenne(i)) {
       struct Node * next = (struct Node*)malloc(sizeof(struct Node *));
       next->data = i;
@@ -2211,6 +2807,14 @@ void PrintCandidateCount() {
 }
 
 bool isPrime(uint64_t num) {
+#ifdef EXPERIMENTAL
+    is_prime(num);
+#else
+  isPrimeNormal(num);
+#endif
+}
+
+bool isPrimeNormal(uint64_t num) {
   if(num == 2) return true;
   if(num % 2 == 0) return false;
   for(uint64_t i = 3; i*i<=num; i+=2) {
@@ -2219,7 +2823,34 @@ bool isPrime(uint64_t num) {
   return true;
 }
 
-int test_get_primes() {
+#ifdef EXPERIMENTAL
+bool is_prime(uint64_t n) {
+    if (n <= 1) {
+        return false; // 1 and numbers less than 1 are not prime
+    }
+    else if (n <= 3) {
+        return true; // 2 and 3 are prime
+    }
+    else if (n % 2 == 0 || n % 3 == 0) {
+        return false; // numbers divisible by 2 or 3 are not prime
+    }
+    uint64_t i = 5;
+    while (i * i <= n) { // check divisibility up to square root of n
+        if (n % i == 0 || n % (i + 2) == 0) { // check divisibility by numbers of the form 6k +/- 1
+            return false;
+        }
+        i += 6;
+    }
+    return true;
+}
+#endif
+
+bool isPrimeFromDB(uint64_t num) {
+  
+  return true;
+}
+
+void test_get_primes() {
   uint64_t ppos = 2;
   uint64_t maxDiff = 1;
   uint64_t primeCount = 1;
@@ -2236,7 +2867,13 @@ int test_get_primes() {
       findPrime(i*100000000);
     }
   }
-  exit(0);
+}
+
+void primeDifferenceStatistics() {
+  uint64_t ppos = 2;
+  uint64_t maxDiff = 1;
+  uint64_t primeCount = 1;
+  uint64_t arr[MAX_DIFF];
 
   memset(arr, 0x00, MAX_DIFF*sizeof(uint64_t));
   for(uint64_t i = 3; i < 1000000000; i+=2) {
@@ -2248,24 +2885,23 @@ int test_get_primes() {
       }
       primeCount++;
       if(primeCount % 1000000 == 0) {
-        printf("[i=%llu] maxDiff : [%llu] primeCount : [%llu]\n", i, maxDiff, primeCount);
+        logging(LOG_DEBUG, "[i=%llu] maxDiff : [%llu] primeCount : [%llu]\n", i, maxDiff, primeCount);
         for(int j = 0; j < MAX_DIFF; j++) {
-          printf("[%llu]", arr[j]);
-          //reset
-          //arr[j] = 0;
+          logging(LOG_DEBUG, "[%llu]", arr[j]);
         }
-        printf("\n");
+        logging(LOG_DEBUG, "\n");
       }
       ppos = i;
     }
   }
-  printf("[i=1000000000] maxDiff : [%llu] primeCount : [%llu]\n", maxDiff, primeCount);
+  logging(LOG_DEBUG, "[i=1000000000] maxDiff : [%llu] primeCount : [%llu]\n", maxDiff, primeCount);
   for(int i = 1; i < MAX_DIFF; i++) {
-    printf("[%llu]", arr[i]);
+    logging(LOG_DEBUG, "[%llu]", arr[i]);
   }
 }
 
-int test_compress() {
+#ifdef USE_COMPRESSION
+void test_compress() {
   char* source = "This is compression sample";
   char* decoded = "";
 
@@ -2292,7 +2928,7 @@ int test_compress() {
   enqueue(pq, nodes[4]);
   enqueue(pq, nodes[5]);
 
-  printf("Count of jobs on the queue : %d\n", pq->usedSize);
+  logging(LOG_DEBUG, "Count of jobs on the queue : %d\n", pq->usedSize);
   while(!isEmpty(pq)) {
     dequeue(pq, &result);
     printNode(&result);
@@ -2301,22 +2937,23 @@ int test_compress() {
   memset(&codeTable, 0, sizeof(HFCode)*MAX_CHAR);
   encode(&tree, (unsigned char*)source, &encoded, codeTable);
 
-  printf("Original Size: %d-bit, encoded Size: %d-bit\n",
+  logging(LOG_DEBUG, "Original Size: %d-bit, encoded Size: %d-bit\n",
     (int)((strlen(source) + 1) * sizeof(char) * 8), encoded.size);
 
   decoded = (char*)malloc(sizeof(char) * (strlen(source) + 1));
   decode(tree, &encoded, (unsigned char*)decoded);
 
-  printf("Original: %s\n", source);
-  printf("encoded: ");
+  logging(LOG_DEBUG, "Original: %s\n", source);
+  logging(LOG_DEBUG, "encoded: ");
   printBinary(&encoded);
-  printf("\ndecoded: %s\n", decoded);
+  logging(LOG_DEBUG, "\ndecoded: %s\n", decoded);
 
   free(decoded);
   destroyTree(tree);
 
   return 0;
 }
+#endif
 
 void readCommand(int argc, char ** argv) {
 
@@ -2334,7 +2971,7 @@ void readCommand(int argc, char ** argv) {
     g_nUseSocket = USE_DIRECT;
     g_nNoFile = USE_FILE;
     g_nFinder = FINDER_NORMAL;
-    g_nTFMProcessCount = 1;
+    g_nTDMProcessCount = 1;
     g_nLLTProcessCount = 1;
     g_nLogFile = LOG_FILE;
     g_nLogNetwork = LOG_NONE;
@@ -2357,7 +2994,7 @@ void readCommand(int argc, char ** argv) {
     g_nUseSocket = configInt("UseSocket");
     g_nNoFile = configInt("NoFile");
     g_nFinder = configInt("Finder");
-    g_nTFMProcessCount = configInt("TFMProcess");
+    g_nTDMProcessCount = configInt("TDMProcess");
     g_nLLTProcessCount = configInt("LLTProcess");
     g_nLogFile = configInt("LogFile");
     g_nLogNetwork = configInt("LogNetwork");
@@ -2383,6 +3020,10 @@ void readCommand(int argc, char ** argv) {
     initConfig();
   }
   memset(candidate, MERSENNE_NUMBER, sizeof(uint64_t)*(g_nSystemMaxCandidate/64 + 1));
+}
+
+void initMT19937() {
+  mt19937_initialize(&mt_state, omp_get_thread_num());
 }
 
 int configInt(char *pKey) {
@@ -2441,7 +3082,6 @@ void readBits() {
 
 void writeBits() {
   lock_enter();
-  memcpy(cache, candidate, g_nSystemMaxCandidate/64 + 1);
 #ifdef USE_COMPRESSION
   compress(CANDIDATE_FILE_NAME, candidate);
 #else
@@ -2453,7 +3093,7 @@ void writeBits() {
   int pos = 0;
   int size = 0;
   if((fp = fopen(CANDIDATE_FILE_NAME, "w")) != NULL ) {
-    for(int i = 0; i < (g_nMaxCandidate/64 + 1)/(MAX_SIZE/sizeof(uint64_t)) + 1;i++) {
+    for(int i = 0; i < (g_nSystemMaxCandidate/64 + 1)/(MAX_SIZE/sizeof(uint64_t)) + 1;i++) {
       memset(buff, 0x00, MAX_SIZE);
       memcpy(buff, candidate+pos, MAX_SIZE);
       size = fwrite(&buff, 1, MAX_SIZE, fp);
@@ -2468,12 +3108,12 @@ void writeBits() {
 }
 
 void updateBits() {
-  memcpy(cache, candidate, g_nSystemMaxCandidate/64 + 1);
+  memcpy(cache, candidate, sizeof(uint64_t)*(g_nSystemMaxCandidate/64 + 1));
   readBits();
   int shift = g_nMinCandidate%64;
   candidate[g_nMinCandidate/64] = ((candidate[g_nMinCandidate/64] >> shift) << shift) + ((cache[g_nMinCandidate/64] << shift) >> shift);
   for(int i = g_nMinCandidate/64 + 1; i < g_nMaxCandidate/64; i++) {
-    candidate[i] = cache[i]; 
+    candidate[i] = cache[i];
   }
   candidate[g_nMaxCandidate/64 + 1] = ((cache[g_nMaxCandidate/64 + 1] >> shift) << shift) + ((candidate[g_nMaxCandidate/64 + 1] << shift) >> shift);
   writeBits();
@@ -2522,7 +3162,7 @@ void writeDB() {
   int pos = 0;
   int size = 0;
   if((fp = fopen(DB_FILE_NAME, "w")) != NULL ) {
-    for(int i = 0; i < (g_nMaxCandidate/64 + 1)/(MAX_SIZE/sizeof(uint64_t)) + 1;i++) {
+    for(int i = 0; i < (g_nSystemMaxCandidate/64 + 1)/(MAX_SIZE/sizeof(uint64_t)) + 1;i++) {
       memset(buff, 0x00, MAX_SIZE);
       memcpy(buff, candidate+pos, MAX_SIZE);
       size = fwrite(&buff, 1, MAX_SIZE, fp);
@@ -2537,15 +3177,15 @@ void writeDB() {
 }
 
 void updateDB() {
-  memcpy(cache, candidate, g_nSystemMaxCandidate/64 + 1);
-  readBits();
+  memcpy(cache, candidate, sizeof(uint64_t)*(g_nSystemMaxCandidate/64 + 1));
+  readDB();
   int shift = g_nMinCandidate%64;
   candidate[g_nMinCandidate/64] = ((candidate[g_nMinCandidate/64] >> shift) << shift) + ((cache[g_nMinCandidate/64] << shift) >> shift);
   for(int i = g_nMinCandidate/64 + 1; i < g_nMaxCandidate/64; i++) {
     candidate[i] = cache[i];
   }
   candidate[g_nMaxCandidate/64 + 1] = ((cache[g_nMaxCandidate/64 + 1] >> shift) << shift) + ((candidate[g_nMaxCandidate/64 + 1] << shift) >> shift);
-  writeBits();
+  writeDB();
 }
 
 int getCompressSize(uint64_t maxPrime) {
@@ -2561,9 +3201,11 @@ int getCompressSize(uint64_t maxPrime) {
   return 256;
 }
 
+#ifdef USE_COMPRESSION
 void getPrime(uint64_t maxPrime, uint64_t * primes) {
   uncompressPrimes(maxPrime, primes);
 }
+#endif
 
 void findPrime(uint64_t maxPrime) {
   int nPrimeIndex = 0;
@@ -2585,6 +3227,7 @@ void findPrime(uint64_t maxPrime) {
 
       ppos = i;
       if(nPrimeIndex % 1000 == 0 || i == maxPrime - 1) {
+        // TODO : Create Index File
         writePrime(maxPrime, primes);
         writeNoise(maxPrime, noises);
         memset(primes, 0x00, sizeof(uint8_t)*MAX_PRIMES);
@@ -2593,7 +3236,9 @@ void findPrime(uint64_t maxPrime) {
       }
     }
   }
+#ifdef USE_COMPRESSION
   compressPrimes(maxPrime);
+#endif
 }
 
 void writePrime(uint64_t maxPrime, uint8_t * primes) {
@@ -2619,6 +3264,8 @@ void writeNoise(uint64_t maxPrime, uint32_t * noises) {
     fclose(fp);
   }
 }
+
+#ifdef USE_COMPRESSION
 
 HFNode* createNode(symbolInfo data) {
   HFNode* node = (HFNode*)calloc(1, sizeof(HFNode));
@@ -2842,7 +3489,6 @@ void printNode (PQNode* node) {
   printf("Task name: %s, Priority: %d\n", (char*)node->data, node->priority);
 }
 
-#ifdef USE_COMPRESSION
 void compress(char * pchFileName, uint64_t * data) {
   uint64_t * compress_data = NULL;
   
@@ -3144,30 +3790,30 @@ uint64_t inverse(int a, int mod) {
   return i;
 }
 
-int test_sign () {
+void test_sign () {
     uint64_t e = E_VALUE;
     uint64_t phi = 0;
 
     uint64_t d, n, p, q, h, m, qInv, m1m2;
     uint64_t c, dP, dQ, m1, m2;
 
-    printf("p and q must be prime numbers, e must be coprime to (p - 1)*(q - 1)\n");
+    logging(LOG_DEBUG, "p and q must be prime numbers, e must be coprime to (p - 1)*(q - 1)\n");
     setprimes(e, &p, &q, &n, &phi);
 
-    printf("p: %llu q: %llu n: %llu phi: %llu\n", p, q, n, phi);
+    logging(LOG_DEBUG, "p: %llu q: %llu n: %llu phi: %llu\n", p, q, n, phi);
 
     d = findD(e,phi);
-    printf("find d: %llu\n", d);
+    logging(LOG_DEBUG, "find d: %llu\n", d);
 
-    printf("Public Key:  (n,e) = (%llu, %llu)\n", n, e);
-    printf("Private Key: (n,d) = (%llu, %llu)\n", n, d);
-    printf("p = %llu, q = %llu, phi = %llu\n", p, q, phi);
-    printf("Key generation success!\n\n");
+    logging(LOG_DEBUG, "Public Key:  (n,e) = (%llu, %llu)\n", n, e);
+    logging(LOG_DEBUG, "Private Key: (n,d) = (%llu, %llu)\n", n, d);
+    logging(LOG_DEBUG, ("p = %llu, q = %llu, phi = %llu\n", p, q, phi);
+    logging(LOG_DEBUG, ("Key generation success!\n\n");
 
     char message[MAX_SIZE];
     memset(message, 0x00, MAX_SIZE);
     strcpy(message, "This is a plain Text!");
-    printf("original message [%s]\n", message);
+    logging(LOG_DEBUG, "original message [%s]\n", message);
  
     uint64_t cipher[MAX_SIZE];
     memset(cipher, 0x00, sizeof(uint64_t)*MAX_SIZE);
@@ -3192,7 +3838,7 @@ int test_sign () {
       m = m2 + h * q;
         decrypted[i] = m;
     }
-    printf("decrypted [%s]\n", decrypted);
+    logging(LOG_DEBUG, "decrypted [%s]\n", decrypted);
     return 0;
 }
 #endif
@@ -3236,7 +3882,7 @@ bool isKnownMersenne(int number) {
 
 int getCandidateCount() {
   int nCount = 0;
-  for(int i = g_nMinCandidate; i < g_nMaxCandidate; i+=2) {
+  for(int i = g_nSystemMinCandidate; i < g_nSystemMaxCandidate; i+=2) {
     if(isCandidate(i) && !isKnownMersenne(i)) {
       nCount++; 
     }
@@ -3286,7 +3932,7 @@ void getStatus(char * pchStatus) {
 }
 
 bool isSingleProcess() {
-  return (g_nTFMProcessCount == 1);
+  return (g_nTDMProcessCount == 1);
 }
 
 void updateProcess(char * pchClass, char * pchPID, char * pchStatus) {
@@ -3345,17 +3991,17 @@ void updateProcess(char * pchClass, char * pchPID, char * pchStatus) {
   lock_leave();
 }
 
-void waitTFMReady() {
+void waitTDMReady() {
   do {
 #ifdef _WIN32
     Sleep(1000);
 #else
     sleep(1);
 #endif
-  } while(!isTFMReady());
+  } while(!isTDMReady());
 }
 
-bool isTFMReady() {
+bool isTDMReady() {
   lock_enter();
   struct Row processStatus[MAX_PROCESS];
           
@@ -3380,15 +4026,15 @@ bool isTFMReady() {
 
   int count = 0;
   for(int i=0; i < nIndex; i++) {
-    if(strcmp(TFM_PROCESS_NAME, processStatus[i].class) == 0 && strcmp(STATUS_READY, processStatus[i].status) != 0) {
+    if(strcmp(TDM_PROCESS_NAME, processStatus[i].class) == 0 && strcmp(STATUS_READY, processStatus[i].status) != 0) {
       lock_leave();
       return false;
     }
-    if(strcmp(TFM_PROCESS_NAME, processStatus[i].class) == 0 && strcmp(STATUS_READY, processStatus[i].status) == 0) {
+    if(strcmp(TDM_PROCESS_NAME, processStatus[i].class) == 0 && strcmp(STATUS_READY, processStatus[i].status) == 0) {
       count++;
     } 
   }
-  if(g_nTFMProcessCount == count) {
+  if(g_nTDMProcessCount == count) {
     lock_leave();
     return true;
   }
@@ -3424,9 +4070,25 @@ void killAll() {
     kill(atoi(processStatus[i].pid), SIGKILL);
     logging(LOG_INFO, "kill [%s,%s,%s]\n", processStatus[i].class, processStatus[i].pid, processStatus[i].status);
   }
+  // TODO : get system process id for kill
+
+  char line[MAX_SIZE];
+  pid_t killpid;
+  memset(line, 0x00, MAX_SIZE);
+  fp = popen("ps -ef | grep mersenne | grep -v grep | grep -v kill","r");
+  while (fgets(line,MAX_SIZE,fp)) {
+    char temp[MAX_SIZE];
+    char temp2[MAX_SIZE];
+    char pid[MAX_SIZE];
+    memset(pid, 0x00, MAX_SIZE);
+    sscanf(line, "%s %s %s", temp,pid,temp2);  
+    logging(LOG_INFO, "kill pid=%s\n",pid);
+    kill(atoi(pid),SIGKILL);
+  }
+  pclose(fp);
 }
 
-void setLastTFM(long p) {
+void setLastTDM(long p) {
   if(isSingleProcess()) {
     FILE *fp = NULL;
     if((fp = fopen(LAST_FILE_NAME, "w")) != NULL ) {
@@ -3439,7 +4101,7 @@ void setLastTFM(long p) {
   }
 }
 
-long getLastTFM() {
+long getLastTDM() {
   long lLastPrime = 0;
   if(isSingleProcess()) {
     FILE *fp = NULL;
@@ -3515,206 +4177,2100 @@ void initConfig() {
   unlink(LAST_FILE_NAME);
 }
 
-// Zeta Function
-void zeta(long double s, long double si, long double * r, long double * ri) {
-  long double a_arr[MAXNUM + 1];
-  long double a_arri[MAXNUM + 1];
-  long double half = 0.5;
-  long double halfi = 0.0;
-  long double one = 1.0;
-  long double onei = 0.0;
-  long double two = 2.0;
-  long double twoi = 0.0;
-  long double rev = -1.0;
-  long double revi = 0.0;
-  long double sum = 0.0;
-  long double sumi = 0.0;
-  long double prev = 1.0e+20;
-  long double previ = 0.0;
+void test_riemann_zeta() {
+  double a = 2;
+  double ai = 0.0;
+  double r = 0.0;
+  double ri = 0.0;
 
-  memset(a_arr, 0x00, sizeof(long double)*(MAXNUM + 1));
-  memset(a_arri, 0x00, sizeof(long double)*(MAXNUM + 1)); 
+  riemann_zeta(a, ai, &r, &ri, 1000000);
+  logging(LOG_DEBUG, "riemann_zeta(%.10f + %.10fi) = %.10f + %.10fi\n", a, ai, r, ri);
+  logging(LOG_DEBUG, "test_riemann_zeta\n");
+}
 
-  // initialize with a_0 = 0.5 / (1 - 2^(1-s))
-  a_arr[0] = half / (one - pow(two, (one - s)));
-  a_arri[0] = halfi / (onei - pow(twoi, (onei - s)));
-  
-  sum += a_arr[0]; 
-  sumi += a_arri[0]; 
+// Riemman Zeta Function
+// Riemann Zeta function can be defined in the complex plane.
+//unsigned int maxn=1000;
+//double s=0.50;
+//double q=14.13472514173470;
+//double q=21.02203963877156;
+//double q=25.01085758014569;
+//double q=30.42487612585951;
+//double q=32.93506158773919;
+//double q=37.58617815882568;
+//double q=40.91871901214750;
+//double q=43.32707328091500;
+//double q=48.00515088116716;
+//double q=49.77383247767230;
 
-  for(int n = 1; n <= MAXNUM; n++) {
-    long double nCplx = n;
-    long double nCplxi = 0.0;
+// ζ(s) = ζ(p + qi) = 0 means p + qi is non-trivial solution.
+void riemann_zeta(double p,double q,double * r,double * ri,int maxNumber) {
+  logging(LOG_DEBUG, "initialize riemann_zeta(%.10f + %.10fi) = %.10f + %.10fi\n", p, q, *r, *ri);
+  for(int n = 1; n < maxNumber; n++) {
+    *r += cos(q*log(n*1.0))/pow(n, p);
+    *ri += -sin(q*log(n*1.0))/pow(n, p);
+    logging(LOG_DEBUG, "sigma(k=1,k=%d) riemann_zeta(%.10f + %.10fi) = %.10f + %.10fi\n", n + 1, p, q, *r, *ri);
+  }
+  logging(LOG_DEBUG, "result riemann_zeta(%.10f + %.10fi) = %.10f + %.10fi\n", p, q, *r, *ri);
+}
 
-    for(int k = 0; k < n; k++) {
-      // complex index
-      long double kCplx = k;
-      long double kCplxi = 0.0;
-   
-      a_arr[k] *= half * (nCplx / (nCplx - kCplx));
-      a_arri[k] *= halfi * (nCplxi / (nCplxi - kCplxi));
-      sum += a_arr[k];
-      sumi += a_arri[k];
+// The Euler product attached to the Riemann zeta function ζ(s), also using the sum of the geometric series.
+// If infinite series of i is zero, p + qi is non-trivial solution of riemman_zeta function and i is prime.
+int euler_product(double p, double q, int maxNumber) {
+  double s = 1.0;
+  double si = 0.0;
+  for(int i = 3; i < g_nMaxPrime; i += 2) {
+    for(int n = 1; n < maxNumber; n++) {
+      s += cos(q*log(n*1.0))/pow(n, p);
+      si += -sin(q*log(n*1.0))/pow(n, p);
+      logging(LOG_DEBUG, "sigma(k=1,k=%d) euler_product(%.2f + %.2fi) = %.2f + %.2fi\n", n + 1, p, q, s, si);
+    }
+    if(s == 0 && si == 0) {
+      return i;
+    }
+  }
+  logging(LOG_DEBUG, "result[%d] riemann_zeta(%.2f + %.2fi) = %.2f + %.2fi\n", p, q, s, si);
+}
+
+#ifdef EXPERIMENTAL
+void test_zeta() {
+
+    // Define the complex number s
+    complex double s = 2.0 + 0.0 * I;
+
+    // Calculate the Riemann zeta function at s
+    complex double zeta_s = riemann_zeta_omp(s);
+
+    // Print the result
+    logging(LOG_DEBUG, "Zeta(%lf + %lfi) = %lf + %lfi\n", creal(s), cimag(s), creal(zeta_s), cimag(zeta_s));
+
+}
+
+// Calculate Riemann zeta function for a given complex number
+complex double riemann_zeta_omp(complex double s) {
+    int N = 100; // Number of terms in the series approximation
+
+    complex double result = 0;
+    #pragma omp parallel for reduction(+:result)
+    for (int n = 1; n <= N; n++) {
+        result += cpow(n, -s);
+    }
+    return result;
+}
+
+void test_geometric_series(){
+    // Define the first term and common ratio of the geometric series
+    complex double first_term = 1.0;
+    complex double common_ratio = 0.5;
+
+    // Define the number of terms in the geometric series
+    int num_terms = 100;
+
+    // Calculate the sum of the geometric series
+    complex double sum = geometric_series(first_term, common_ratio, num_terms);
+
+    // Print the result
+    logging(LOG_DEBUG, "Sum of the geometric series: %lf + %lfi\n", creal(sum), cimag(sum));
+}
+
+// Compute the sum of a geometric series with a given first term, common ratio, and number of terms
+complex double geometric_series(complex double first_term, complex double common_ratio, int num_terms) {
+    complex double sum = 0.0;
+    complex double term = first_term;
+    #pragma omp parallel for reduction(+:sum)
+    for (int i = 0; i < num_terms; i++) {
+        sum += term;
+        term *= common_ratio;
+    }
+    return sum;
+}
+
+// Perform FFT using Cooley-Tukey algorithm
+void fft(complex double *x, int n) {
+    if (n <= 1) return;
+    complex double *even = (complex double *)malloc(n / 2 * sizeof(complex double));
+    complex double *odd = (complex double *)malloc(n / 2 * sizeof(complex double));
+
+    for (int i = 0; i < n / 2; i++) {
+        even[i] = x[2 * i];
+        odd[i] = x[2 * i + 1];
     }
 
-    a_arr[n] = (rev * a_arr[n-1]* pow((nCplx / (nCplx + one)), s) / nCplx);
-    a_arri[n] = (revi * a_arri[n-1]* pow((nCplxi / (nCplxi + onei)), si) / nCplxi);
-    sum += a_arr[n];
-    sumi += a_arr[n];
+    fft(even, n / 2);
+    fft(odd, n / 2);
 
-   
-    if( abs(prev - sum) < LOWER_THRESHOLD && abs(previ - sumi) < LOWER_THRESHOLD) {
-    // If the differences is less than or equal to the threshold value, it is considered to be convergent and the calculation is terminated.
-       break;
-     } 
-     if( abs(sum) > UPPER_BOUND && abs(sumi) > UPPER_BOUND) {
-       // doesn't work for large values, so it gets terminated when it exceeds UPPER_BOUND
-       break;
-     }
-     prev = sum;
-     previ = sumi;
-   }
-   *r = sum;
-   *ri = sumi;
+    for (int i = 0; i < n / 2; i++) {
+        complex double t = cexp(-2.0 * I * M_PI * i / n) * odd[i];
+        x[i] = even[i] + t;
+        x[i + n / 2] = even[i] - t;
+    }
+
+    free(even);
+    free(odd);
 }
 
-double _pi(int accuracy){
-     double result = 1;
-     int a = 2;
-     int b = 1;
+// Perform iFFT using Cooley-Tukey algorithm
+void ifft(complex double *x, int n) {
+    for (int i = 0; i < n; i++) {
+        x[i] = conj(x[i]);
+    }
 
-     for(int i = 0;i < accuracy; i ++){
-          result = a/b * result;
-          if(a < b){
-               a = a + 2;
-          }
-          else if(b < a){
-               b = b + 2;
-          }
-     }
+    fft(x, n);
 
-     return result * 2;
+    for (int i = 0; i < n; i++) {
+        x[i] = conj(x[i]) / n;
+    }
 }
 
-double _log10(double x) {
-	union {double f; uint64_t i;} u = {x};
-	double_t hfsq,f,s,z,R,w,t1,t2,dk,y,hi,lo,val_hi,val_lo;
-	uint32_t hx;
-	int k;
-	hx = u.i>>32;
-	k = 0;
-	if (hx < 0x00100000 || hx>>31) {
-		if (u.i<<1 == 0)
-			return -1/(x*x);  /* log(+-0)=-inf */
-		if (hx>>31)
-			return (x-x)/0.0; /* log(-#) = NaN */
-		/* subnormal number, scale x up */
-		k -= 54;
-		x *= 0x1p54;
-		u.f = x;
-		hx = u.i>>32;
-	} else if (hx >= 0x7ff00000) {
-		return x;
-	} else if (hx == 0x3ff00000 && u.i<<32 == 0)
-		return 0;
-	/* reduce x into [sqrt(2)/2, sqrt(2)] */
-	hx += 0x3ff00000 - 0x3fe6a09e;
-	k += (int)(hx>>20) - 0x3ff;
-	hx = (hx&0x000fffff) + 0x3fe6a09e;
-	u.i = (uint64_t)hx<<32 | (u.i&0xffffffff);
-	x = u.f;
-	f = x - 1.0;
-	hfsq = 0.5*f*f;
-	s = f/(2.0+f);
-	z = s*s;
-	w = z*z;
-	t1 = w*(Lg2+w*(Lg4+w*Lg6));
-	t2 = z*(Lg1+w*(Lg3+w*(Lg5+w*Lg7)));
-	R = t2 + t1;
-	/* See log2.c for details. */
-	/* hi+lo = f - hfsq + s*(hfsq+R) ~ log(1+f) */
-	hi = f - hfsq;
-	u.f = hi;
-	u.i &= (uint64_t)-1<<32;
-	hi = u.f;
-	lo = f - hi - hfsq + s*(hfsq+R);
-	/* val_hi+val_lo ~ log10(1+f) + k*log10(2) */
-	val_hi = hi*ivln10hi;
-	dk = k;
-	y = dk*log10_2hi;
-	val_lo = dk*log10_2lo + (lo+hi)*ivln10lo + lo*ivln10hi;
-	/*
-	 * Extra precision in for adding y is not strictly needed
-	 * since there is no very large cancellation near x = sqrt(2) or
-	 * x = 1/sqrt(2), but we do it anyway since it costs little on CPUs
-	 * with some parallelism and it reduces the error for many args.
-	 */
-	w = y + val_hi;
-	val_lo += (y - w) + val_hi;
-	val_hi = w;
-	return val_lo + val_hi;
+// Multiply two BigIntegers using FFT
+void multiply_bigint_fft(BigInt *a, BigInt *b, BigInt *result) {
+    int n = 2 * max(a->length, b->length);
+    complex double *x = (complex double *)malloc(n * sizeof(complex double));
+    complex double *y = (complex double *)malloc(n * sizeof(complex double));
+    complex double *z = (complex double *)malloc(n * sizeof(complex double));
+
+    // Initialize arrays x and y with values from BigIntegers a and b
+    for (int i = 0; i < a->length; i++) {
+        x[i] = a->digits[i];
+    }
+    for (int i = a->length; i < n; i++) {
+        x[i] = 0;
+    }
+    for (int i = 0; i < b->length; i++) {
+        y[i] = b->digits[i];
+    }
+    for (int i = b->length; i < n; i++) {
+        y[i] = 0;
+    }
+
+    // Perform FFT on arrays x and y
+    fft(x, n);
+    fft(y, n);
+
+    // Element-wise multiplication of the FFT results
+    for (int i = 0; i < n; i++) {
+        z[i] = x[i] * y[i];
+    }
+
+    // Perform iFFT on array z
+    ifft(z, n);
+
+    // Extract the result from array z and update the BigInt result
+    int carry = 0;
+    for (int i = 0; i < n; i++) {
+        int digit = round(creal(z[i])) + carry;
+        result->digits[i] = digit % 10;
+        carry = digit / 10;
+    }
+
+    // Find the length of the result
+    result->length = n;
+    while (result->digits[result->length - 1] == 0 && result->length > 1) {
+        result->length--;
+    }
+
+    free(x);
+    free(y);
+    free(z);
 }
 
-double _log(double x)
-{
-	union {double f; uint64_t i;} u = {x};
-	double_t hfsq,f,s,z,R,w,t1,t2,dk;
-	uint32_t hx;
-	int k;
-	hx = u.i>>32;
-	k = 0;
-	if (hx < 0x00100000 || hx>>31) {
-		if (u.i<<1 == 0)
-			return -1/(x*x);  /* log(+-0)=-inf */
-		if (hx>>31)
-			return (x-x)/0.0; /* log(-#) = NaN */
-		/* subnormal number, scale x up */
-		k -= 54;
-		x *= 0x1p54;
-		u.f = x;
-		hx = u.i>>32;
-	} else if (hx >= 0x7ff00000) {
-		return x;
-	} else if (hx == 0x3ff00000 && u.i<<32 == 0)
-		return 0;
-	/* reduce x into [sqrt(2)/2, sqrt(2)] */
-	hx += 0x3ff00000 - 0x3fe6a09e;
-	k += (int)(hx>>20) - 0x3ff;
-	hx = (hx&0x000fffff) + 0x3fe6a09e;
-	u.i = (uint64_t)hx<<32 | (u.i&0xffffffff);
-	x = u.f;
-	f = x - 1.0;
-	hfsq = 0.5*f*f;
-	s = f/(2.0+f);
-	z = s*s;
-	w = z*z;
-	t1 = w*(Lg2+w*(Lg4+w*Lg6));
-	t2 = z*(Lg1+w*(Lg3+w*(Lg5+w*Lg7)));
-	R = t2 + t1;
-	dk = k;
-	return s*(hfsq+R) + dk*ln2_lo - hfsq + f + dk*ln2_hi;
+// Perform FFT using Cooley-Tukey algorithm
+void fft_omp(complex double *x, int n) {
+    if (n <= 1) return;
+    complex double *even = (complex double *)malloc(n / 2 * sizeof(complex double));
+    complex double *odd = (complex double *)malloc(n / 2 * sizeof(complex double));
+
+    #pragma omp parallel for
+    for (int i = 0; i < n / 2; i++) {
+        even[i] = x[2 * i];
+        odd[i] = x[2 * i + 1];
+    }
+
+    fft_omp(even, n / 2);
+    fft_omp(odd, n / 2);
+
+    #pragma omp parallel for
+    for (int i = 0; i < n / 2; i++) {
+        complex double t = cexp(-2.0 * I * PI * i / n) * odd[i];
+        x[i] = even[i] + t;
+        x[i + n / 2] = even[i] - t;
+    }
+
+    free(even);
+    free(odd);
 }
 
-double _cos(double x, double y)
-{
-	double_t hz,z,r,w;
-	z  = x*x;
-	w  = z*z;
-	r  = z*(C1+z*(C2+z*C3)) + w*w*(C4+z*(C5+z*C6));
-	hz = 0.5*z;
-	w  = 1.0-hz;
-	return w + (((1.0-w)-hz) + (z*r-x*y));
+// Perform iFFT using Cooley-Tukey algorithm
+void ifft_omp(complex double *x, int n) {
+    #pragma omp parallel for
+    for (int i = 0; i < n; i++) {
+        x[i] = conj(x[i]);
+    }
+
+    fft_omp(x, n);
+
+    #pragma omp parallel for
+    for (int i = 0; i < n; i++) {
+        x[i] = conj(x[i]) / n;
+    }
 }
 
-double _sin(double x, double y, int iy)
-{
-	double_t z,r,v,w;
-	z = x*x;
-	w = z*z;
-	r = S2 + z*(S3 + z*S4) + z*w*(S5 + z*S6);
-	v = z*x;
-	if (iy == 0)
-		return x + v*(S1 + z*r);
-	else
-		return x - ((z*(0.5*y - v*r) - y) - v*S1);
+// Multiply two BigIntegers using FFT
+void multiply_bigint_fft_omp(BigInt *a, BigInt *b, BigInt *result) {
+    int n = 2 * max(a->length, b->length);
+    complex double *x = (complex double *)malloc(n * sizeof(complex double));
+    complex double *y = (complex double *)malloc(n * sizeof(complex double));
+    complex double *z = (complex double *)malloc(n * sizeof(complex double));
+
+    // Initialize arrays x and y with values from BigIntegers a and b
+    for (int i = 0; i < a->length; i++) {
+        x[i] = a->digits[i];
+    }
+    for (int i = a->length; i < n; i++) {
+        x[i] = 0;
+    }
+    for (int i = 0; i < b->length; i++) {
+        y[i] = b->digits[i];
+    }
+    for (int i = b->length; i < n; i++) {
+        y[i] = 0;
+    }
+
+    // Perform FFT on arrays x and y
+    fft_omp(x, n);
+    fft_omp(y, n);
+
+    // Element-wise multiplication of the FFT results
+    #pragma omp parallel for
+    for (int i = 0; i < n; i++) {
+        z[i] = x[i] * y[i];
+    }
+
+    // Perform iFFT on array z
+    ifft_omp(z, n);
+
+    // Extract the result from array z and update the BigInt result
+    int carry = 0;
+    for (int i = 0; i < n; i++) {
+        int digit = round(creal(z[i])) + carry;
+        result->digits[i] = digit % 10;
+        carry = digit / 10;
+    }
+
+    // Find the length of the result
+    result->length = n;
+    while (result->digits[result->length - 1] == 0 && result->length > 1) {
+        result->length--;
+    }
+
+    free(x);
+    free(y);
+    free(z);
 }
+
+// Square a BigInt using FFT
+void square_bigint_fft(BigInt *a, BigInt *result) {
+    int n = 2 * a->length;
+    complex double *x = (complex double *)malloc(n * sizeof(complex double));
+
+    // Initialize array x with values from BigInt a
+    for (int i = 0; i < a->length; i++) {
+        x[i] = a->digits[i];
+    }
+    for (int i = a->length; i < n; i++) {
+        x[i] = 0;
+    }
+
+    // Perform FFT on array x
+    fft(x, n);
+
+    // Element-wise squaring of the FFT results
+    for (int i = 0; i < n; i++) {
+        x[i] *= x[i];
+    }
+
+    // Perform iFFT on array x
+    ifft(x, n);
+
+    // Extract the result from array x and update the BigInt result
+    int carry = 0;
+    for (int i = 0; i < n; i++) {
+        int digit = round(creal(x[i])) + carry;
+        result->digits[i] = digit % 10;
+        carry = digit / 10;
+    }
+
+    // Find the length of the result
+    result->length = n;
+    while (result->digits[result->length - 1] == 0 && result->length > 1) {
+        result->length--;
+    }
+
+    free(x);
+}
+
+// Square a BigInt using FFT with OpenMP parallelization
+void square_bigint_fft_omp(BigInt *a, BigInt *result) {
+    int n = 2 * a->length;
+    complex double *x = (complex double *)malloc(n * sizeof(complex double));
+
+    // Initialize array x with values from BigInt a
+    for (int i = 0; i < a->length; i++) {
+        x[i] = a->digits[i];
+    }
+    for (int i = a->length; i < n; i++) {
+        x[i] = 0;
+    }
+
+    // Perform FFT on array x
+    fft_omp(x, n);
+
+    // Element-wise squaring of the FFT results
+    #pragma omp parallel for
+    for (int i = 0; i < n; i++) {
+        x[i] *= x[i];
+    }
+
+    // Perform iFFT on array x
+    ifft_omp(x, n);
+
+    // Extract the result from array x and update the BigInt result
+    int carry = 0;
+    for (int i = 0; i < n; i++) {
+        int digit = round(creal(x[i])) + carry;
+        result->digits[i] = digit % 10;
+        carry = digit / 10;
+    }
+
+    // Find the length of the result
+    result->length = n;
+    while (result->digits[result->length - 1] == 0 && result->length > 1) {
+        result->length--;
+    }
+
+    free(x);
+}
+
+void test_fft() {
+    // Initialize BigIntegers a and b with values
+    BigInt a, b, result;
+    init_bigint_value(&a, 123);
+    init_bigint_value(&b, 456);
+
+    // Multiply BigIntegers a and b using FFT
+    if(g_nUseOMP == USE_OMP) {
+      multiply_bigint_fft_omp(&a, &b, &result);
+    } else {
+      multiply_bigint_fft(&a, &b, &result);
+    }
+
+    // Print the result
+    logging(LOG_DEBUG, "Result of multiplication: ");
+    print_bigint(&result);
+
+    if(g_nUseOMP == USE_OMP) {
+      square_bigint_fft_omp(&a, &result);
+    } else {
+      // Square BigInt a using FFT
+      square_bigint_fft(&a, &result);
+    }
+
+    logging(LOG_DEBUG, "Result of squaring: ");
+    print_bigint(&result);
+
+}
+
+void mt19937_initialize(mt19937_state *state, uint32_t seed) {
+    state->state[0] = seed;
+    for (int i = 1; i < MT_N; ++i) {
+        state->state[i] = (1812433253UL * (state->state[i-1] ^ (state->state[i-1] >> 30)) + i);
+    }
+    state->index = MT_N;
+}
+
+uint32_t mt19937_extract_number(mt19937_state *state) {
+    if (state->index >= MT_N) {
+        int i;
+        for (i = 0; i < MT_N - MT_M; ++i) {
+            uint32_t y = (state->state[i] & MT_UPPER_MASK) | (state->state[i+1] & MT_LOWER_MASK);
+            state->state[i] = state->state[i + MT_M] ^ (y >> 1) ^ (-(int32_t)(y & 1) & MT_MATRIX_A);
+        }
+        for (; i < MT_N - 1; ++i) {
+            uint32_t y = (state->state[i] & MT_UPPER_MASK) | (state->state[i+1] & MT_LOWER_MASK);
+            state->state[i] = state->state[i + (MT_M - MT_N)] ^ (y >> 1) ^ (-(int32_t)(y & 1) & MT_MATRIX_A);
+        }
+        uint32_t y = (state->state[MT_N - 1] & MT_UPPER_MASK) | (state->state[0] & MT_LOWER_MASK);
+        state->state[MT_N - 1] = state->state[MT_M - 1] ^ (y >> 1) ^ (-(int32_t)(y & 1) & MT_MATRIX_A);
+        state->index = 0;
+    }
+
+    uint32_t y = state->state[state->index++];
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680;
+    y ^= (y << 15) & 0xefc60000;
+    y ^= (y >> 18);
+    return y;
+}
+uint64_t power(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        base = (base * base) % mod;
+        exp /= 2;
+    }
+    return result;
+}
+
+// Function to calculate (a^b) % mod
+uint64_t power_ll(uint64_t a, uint64_t b, uint64_t mod) {
+    uint64_t result = 1;
+    a = a % mod;
+    while (b > 0) {
+        if (b & 1)
+            result = (result * a) % mod;
+        b = b >> 1;
+        a = (a * a) % mod;
+    }
+    return result;
+}
+
+bool miller_rabin(uint64_t n, int k) {
+    if (n <= 1 || n == 4) {
+        return false;
+    }
+    if (n <= 3) {
+        return true;
+    }
+
+    uint64_t d = n - 1;
+    while (d % 2 == 0) {
+        d /= 2;
+    }
+
+    for (int i = 0; i < k; i++) {
+        uint64_t a = mt19937_extract_number(&mt_state) % (n - 4) + 2; // Generate a random base between [2, n - 2]
+        uint64_t x = power(a, d, n);
+        if (x == 1 || x == n - 1) {
+            continue;
+        }
+        bool prime = false;
+        for (uint64_t r = d; r != n - 1; r *= 2) {
+            x = (x * x) % n;
+            if (x == 1) {
+                return false;
+            }
+            if (x == n - 1) {
+                prime = true;
+                break;
+            }
+        }
+        if (!prime) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void test_miller_rabin() {
+    uint64_t num = 2147483647ULL; // Number to be tested for primality
+    int iterations = 5; // Number of iterations for the Miller-Rabin test
+
+    mt19937_initialize(&mt_state, omp_get_thread_num()); // Initialize Mersenne Twister with thread-specific seed
+
+    if (miller_rabin(num, iterations)) {
+        logging(LOG_DEBUG, "%llu is prime.\n", num);
+    } else {
+        logging(LOG_DEBUG, "%llu is composite.\n", num);
+    }
+}
+
+void lucas_lehmer_test(const int p) {
+    BigInt s, m;
+    init_bigint(&s);
+    init_bigint(&m);
+
+    // Initialize s = 4
+    s.digits[0] = 4;
+    s.length = 1;
+
+    // Calculate Mersenne number M = 2^p - 1
+    m.digits[0] = 1;
+    m.length = 1;
+    left_shift_bigint(&m, p);
+    subtract_bigint(&m, &s, &m);
+
+    // Perform p - 2 iterations of the Lucas-Lehmer test
+    for (int i = 0; i < p - 2; ++i) {
+        BigInt square;
+        multiply_bigint(&s, &s, &square);
+        right_shift_bigint(&square, p);
+        subtract_bigint(&square, &m, &s);
+    }
+
+    // If s is zero, M is prime
+    if (s.length == 0) {
+        logging(LOG_DEBUG, "2^%d - 1 is prime.\n", p);
+    } else {
+        logging(LOG_DEBUG, "2^%d - 1 is not prime.\n", p);
+    }
+}
+
+void lucas_lehmer_test_omp(const int p) {
+    BigInt m, s, result;
+    init_bigint(&m);
+    init_bigint(&s);
+    init_bigint(&result);
+
+    // Mersenne number M_p = 2^p - 1
+    m.digits[0] = 1;
+    m.length = 1;
+    left_shift_bigint(&m, p);
+    subtract_bigint(&m, &(BigInt){{1}, 1}, &m);
+
+    // Initialize s = 4
+    s.digits[0] = 4;
+    s.length = 1;
+
+    // Perform p - 2 iterations of squaring and subtracting 2
+    #pragma omp parallel for
+    for (int i = 0; i < p - 2; i++) {
+        square_bigint(&s, &result);  // Square s
+        subtract_bigint(&result, &(BigInt){{2}, 1}, &s);  // Subtract 2
+    }
+
+    // Check if s is divisible by M_p
+    mod_bigint(&s, &m, &result);
+    if (result.length == 1 && result.digits[0] == 0) {
+        logging(LOG_DEBUG, "Mersenne prime M_%d = 2^%d - 1 is prime\n", p, p);
+    } else {
+        logging(LOG_DEBUG, "Mersenne number M_%d = 2^%d - 1 is not prime\n", p, p);
+    }
+}
+
+void test_lucaslehmer() {
+    int exponent = 9; // Exponent of the Mersenne prime to test: 2^exponent - 1
+
+    if(g_nUseOMP == USE_OMP) {
+      lucas_lehmer_test_omp(exponent);
+
+    } else {
+      lucas_lehmer_test(exponent);
+    }
+}
+
+#ifdef BIGINT
+void test_bigint() {
+    BigInt a, b, qt, rm, result;
+    init_bigint(&a);
+    init_bigint(&b);
+    init_bigint(&qt);
+    init_bigint(&rm);
+    init_bigint(&result);
+
+    assign_bigint(&a, &(BigInt){{ 1, 1, 1}, 3});
+    assign_bigint(&b, &(BigInt){{ 1, 1}, 2});
+
+    logging(LOG_DEBUG, "a = ");
+    print_bigint(&a);
+    logging(LOG_DEBUG,"b = ");
+    print_bigint(&b);
+
+    logging(LOG_DEBUG, "a + b = ");
+    assign_bigint(&a, &(BigInt){{ 1, 1, 1}, 3});
+    assign_bigint(&b, &(BigInt){{ 1, 1}, 2});
+    add_bigint(&a, &b, &result);
+    print_bigint(&result);
+
+    logging(LOG_DEBUG, "a - b = ");
+    assign_bigint(&a, &(BigInt){{ 1, 1, 1}, 3});
+    assign_bigint(&b, &(BigInt){{ 1, 1}, 2});
+    subtract_bigint(&a, &b, &result);
+    print_bigint(&result);
+
+    logging(LOG_DEBUG, "a / b = ");
+    assign_bigint(&a, &(BigInt){{ 1, 1, 1}, 3});
+    assign_bigint(&b, &(BigInt){{ 1, 1}, 2});
+    divide_bigint(&a, &b, &qt, &rm);
+    print_bigint(&qt);
+    print_bigint(&rm);
+
+    logging(LOG_DEBUG,"a * b = ");
+    assign_bigint(&a, &(BigInt){{ 1, 1, 1}, 3});
+    assign_bigint(&b, &(BigInt){{ 1, 1}, 2});
+    multiply_bigint(&a, &b, &result);
+    print_bigint(&result);
+
+    logging(LOG_DEBUG, "a mod b = ");
+    assign_bigint(&a, &(BigInt){{ 1, 1, 1}, 3});
+    assign_bigint(&b, &(BigInt){{ 1, 1}, 2});
+    mod_bigint(&a, &b, &result);
+    print_bigint(&result);
+
+    logging(LOG_DEBUG, "a^2 = ");
+    assign_bigint(&a, &(BigInt){{ 1, 1, 1}, 3});
+    assign_bigint(&b, &(BigInt){{ 1, 1}, 2});
+    square_bigint(&a, &result);
+    print_bigint(&a);
+    print_bigint(&result);
+
+    logging(LOG_DEBUG, "sqrt(a=12) = ");
+    assign_bigint(&a, &(BigInt){{ 4, 4, 1}, 3});
+    sqrt_bigint(&a, &result);
+    print_bigint(&result);
+
+    logging(LOG_DEBUG,"(a=12)^(n=2) = ");
+    assign_bigint(&a, &(BigInt){{ 2, 1}, 2});
+    power_bigint(&a, 2, &result);
+    print_bigint(&result);
+
+    logging(LOG_DEBUG, "(n=5)! = ");
+    factorial_bigint(5, &result);
+    print_bigint(&result);
+
+    BigInt num;
+    num.length = 3;
+    num.digits[0] = 0xFFFFFFFF; // Maximum value for 32-bit unsigned integer
+    num.digits[1] = 0x00000001; // Least significant digit
+    num.digits[2] = 0x00000000; // Additional digit
+
+    logging(LOG_DEBUG, "Original BigInt: ");
+    for (int i = num.length - 1; i >= 0; i--) {
+        logging(LOG_DEBUG, "%08X", num.digits[i]);
+    }
+    logging(LOG_DEBUG,"\n");
+
+    // Left shift by 36 bits
+    left_shift_bit_bigint(&num, 36);
+    logging(LOG_DEBUG, "Left Shifted Bits By BigInt: ");
+    for (int i = num.length - 1; i >= 0; i--) {
+        logging(LOG_DEBUG, "%08X", num.digits[i]);
+    }
+    logging(LOG_DEBUG, "\n");
+
+    num.length = 3;
+    num.digits[0] = 0xFFFFFFFF; // Maximum value for 32-bit unsigned integer
+    num.digits[1] = 0x00000001; // Least significant digit
+    num.digits[2] = 0x00000000; // Additional digit
+
+    logging(LOG_DEBUG, "Original BigInt: ");
+    for (int i = num.length - 1; i >= 0; i--) {
+        logging(LOG_DEBUG, "%08X", num.digits[i]);
+    }
+    logging(LOG_DEBUG, "\n");
+
+    // Right shift by 36 bits
+    right_shift_bit_bigint(&num, 36);
+    logging(LOG_DEBUG,"Right Shifted Bits By BigInt: ");
+    for (int i = num.length - 1; i >= 0; i--) {
+        logging(LOG_DEBUG, "%08X", num.digits[i]);
+    }
+    logging(LOG_DEBUG, "\n");
+
+    //BigInt num;
+    init_bigint(&num);
+    num.digits[0] = 1;
+    num.digits[1] = 2;
+    num.digits[2] = 3;
+    num.length = 3;
+
+    logging(LOG_DEBUG, "Before left shift: ");
+    print_bigint(&num);
+
+    left_shift_bigint(&num, 1);
+    logging(LOG_DEBUG, "After left shift: ");
+    print_bigint(&num);
+
+    logging(LOG_DEBUG, "Before right shift: ");
+    print_bigint(&num);
+
+    right_shift_bigint(&num, 1);
+    logging(LOG_DEBUG, "After right shift: ");
+    print_bigint(&num);
+
+    double angle_degrees = 45.0;  // Angle in degrees
+    double angle_radians = angle_degrees * M_PI / 180.0; // Convert angle to radians
+    int precision = PRECISION;  // Desired precision
+
+    // Compute and print sine
+    double sin_value = sine(angle_radians, precision);
+    logging(LOG_DEBUG, "Sine of %.2f degrees with precision %d is %.50f\n", angle_degrees, precision, sin_value);
+
+    // Compute and print cosine
+    double cos_value = cosine(angle_radians, precision);
+    logging(LOG_DEBUG, "Cosine of %.2f degrees with precision %d is %.50f\n", angle_degrees, precision, cos_value);
+
+    // Compute and print natural logarithm
+    double log_value = logarithm(2.0, precision);
+    logging(LOG_DEBUG, "Natural logarithm of 2.0 with precision %d is %.50f\n", precision, log_value);
+
+    // Compute and print base 10 logarithm
+    double log10_value = logarithm_base10(2.0, precision);
+    logging(LOG_DEBUG, "Base 10 logarithm of 2.0 with precision %d is %.50f\n", precision, log10_value);
+
+    // Compute and print pi
+    double pi_value = pi(precision);
+    logging(LOG_DEBUG, "Value of pi with precision %d is %.50f\n", precision, pi_value);
+
+    compute_pi();
+}
+
+// Function to initialize a BigInt with a string representation of a number
+void init_bigint_from_string(const char *num_str, BigInt *num) {
+    num->length = strlen(num_str);
+    for (int i = 0; i < num->length; i++) {
+        num->digits[i] = num_str[num->length - i - 1] - '0';
+    }
+}
+
+void init_bigint(BigInt *num) {
+    memset(num->digits, 0, MAX_DIGITS * sizeof(int));
+    num->length = 0;
+}
+
+void assign_bigint(BigInt *dest, const BigInt *src) {
+    memcpy(dest->digits, src->digits, MAX_DIGITS * sizeof(int));
+    dest->length = src->length;
+}
+
+void print_bigint(const BigInt *num) {
+    if(num->length -1 < 0) {
+      printf("[]\n");
+    } else {
+    for (int i = num->length - 1; i >= 0; i--) {
+        printf("[%d]", num->digits[i]);
+    }
+      printf("\n");
+    }
+}
+
+void print_bigint_desc(char * desc, const BigInt *num) {
+    printf("[%s]:", desc);
+    if(num->length -1 < 0) {
+      printf("[]\n");
+    } else {
+      for (int i = num->length - 1; i >= 0; i--) {
+        printf("[%d]", num->digits[i]);
+      }
+      printf("\n");
+    }
+}
+
+// Function to compare two big integers (returns -1 if a < b, 0 if a == b, and 1 if a > b)
+int compare_bigint(const BigInt *a,const BigInt *b) {
+    // Compare the lengths of the numbers
+    if (a->length < b->length) {
+        return -1;
+    } else if (a->length > b->length) {
+        return 1;
+    } else {
+        // Compare digits starting from the most significant digit
+        for (int i = a->length - 1; i >= 0; i--) {
+            if (a->digits[i] < b->digits[i]) {
+                return -1;
+            } else if (a->digits[i] > b->digits[i]) {
+                return 1;
+            }
+        }
+        // If all digits are equal, return 0
+        return 0;
+    }
+}
+
+// Function to add two big integers a and b and store the result in result
+void add_bigint(const BigInt *a,const BigInt *b, BigInt *result) {
+    int carry = 0;
+    int max_length = (a->length > b->length) ? a->length : b->length;
+
+    for (int i = 0; i < max_length; i++) {
+        int sum = carry;
+        if (i < a->length) {
+            sum += a->digits[i];
+        }
+        if (i < b->length) {
+            sum += b->digits[i];
+        }
+        result->digits[i] = sum % 10;
+        carry = sum / 10;
+    }
+
+    if (carry > 0) {
+        result->digits[max_length] = carry;
+        result->length = max_length + 1;
+    } else {
+        result->length = max_length;
+    }
+}
+
+void subtract_bigint(const BigInt *a,const BigInt *b, BigInt *result) {
+    int borrow = 0;
+    int i;
+    for (i = 0; i < a->length; i++) {
+        int diff = a->digits[i] - borrow;
+        if (i < b->length) diff -= b->digits[i];
+        if (diff < 0) {
+            diff += 10;
+            borrow = 1;
+        } else {
+            borrow = 0;
+        }
+        result->digits[i] = diff;
+    }
+    result->length = a->length;
+    while (result->digits[result->length - 1] == 0 && result->length > 1) {
+        result->length--;
+    }
+}
+
+// Function to multiply two big integers
+void multiply_bigint(const BigInt *a,const BigInt *b, BigInt *result) {
+    // Initialize result to zero
+    memset(result->digits, 0, sizeof(result->digits));
+    result->length = 0;
+
+    // Perform multiplication
+    for (int i = 0; i < a->length; i++) {
+        int carry = 0;
+        for (int j = 0; j < b->length || carry; j++) {
+            int tmp = result->digits[i + j] + a->digits[i] * (j < b->length ? b->digits[j] : 0) + carry;
+            result->digits[i + j] = tmp % BASE;
+            carry = tmp / BASE;
+            if (i + j + 1 > result->length && (result->digits[i + j] != 0 || carry)) {
+                result->length = i + j + 1;
+            }
+        }
+    }
+}
+
+void multiply_scalar_bigint(const BigInt *a,const int scalar, BigInt *result) {
+    int carry = 0;
+
+    // Initialize the result to zero
+    init_bigint(result);
+
+    // Iterate over each digit of BigInt 'a'
+    for (int i = 0; i < a->length || carry; ++i) {
+        int product = carry;
+        if (i < a->length) {
+            product += a->digits[i] * scalar;
+        }
+        result->digits[i] = product % 10; // Store the least significant digit
+        carry = product / 10; // Update carry for the next iteration
+    }
+
+    // Set the length of the result BigInt
+    result->length = a->length + 1; // The length might increase by one due to carry
+
+    // Remove leading zeros from the result BigInt
+    while (result->length > 1 && result->digits[result->length - 1] == 0) {
+        result->length--;
+    }
+}
+
+void divide_bigint(const BigInt *a, const BigInt *b, BigInt *quotient, BigInt *remainder) {
+    BigInt temp; // Temporary BigInt for storing intermediate results
+    init_bigint(&temp);
+    // Initialize quotient and remainder BigInts
+    init_bigint(quotient);
+    init_bigint(remainder);
+
+    // Loop through each digit of the dividend 'a' starting from the most significant digit
+    for (int i = a->length - 1; i >= 0; --i) {
+        // Shift the remainder to the left by one digit and add the current digit of the dividend
+        init_bigint(&temp);
+        multiply_scalar_bigint(remainder, 10, &temp);
+        assign_bigint(remainder, &temp);
+        remainder->digits[0] = a->digits[i];
+        if(remainder->length <= 0) {
+          remainder->length = 1;
+        }
+
+        // Initialize the quotient digit to zero
+        int qDigit = 0;
+
+        // Binary search for the quotient digit that makes the current remainder less than or equal to the divisor 'b'
+        int low = 0, high = 9;
+        while (low <= high) {
+            int mid = (low + high) / 2;
+
+            // Multiply the divisor 'b' by the current quotient digit 'mid'
+            multiply_scalar_bigint(b, mid, &temp);
+
+            // Compare the result with the current remainder
+            if (compare_bigint(&temp, remainder) <= 0) {
+                qDigit = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        // Subtract the product of the divisor 'b' and the quotient digit 'qDigit' from the remainder
+        multiply_scalar_bigint(b, qDigit, &temp);
+        subtract_bigint(remainder, &temp, remainder);
+
+        // Set the current digit of the quotient
+        quotient->digits[i] = qDigit;
+        if(quotient->length < i + 1) {
+          quotient->length = i+1;
+        }
+    }
+
+    // Remove leading zeros from the quotient
+    quotient->length = a->length;
+    while (quotient->length > 1 && quotient->digits[quotient->length - 1] == 0) {
+        quotient->length--;
+    }
+
+    // Remove leading zeros from the remainder
+    while (remainder->length > 1 && remainder->digits[remainder->length - 1] == 0) {
+        remainder->length--;
+    }
+}
+
+void divide_scalar_bigint(const BigInt *a, const int scalar, BigInt *quotient) {
+    // Initialize quotient
+    init_bigint(quotient);
+
+    int remainder = 0;
+    for (int i = a->length - 1; i >= 0; --i) {
+        int dividend = remainder * 10 + a->digits[i];
+        quotient->digits[i] = dividend / scalar;
+        remainder = dividend % scalar;
+    }
+
+    // Adjust the length of the quotient
+    quotient->length = a->length;
+    while (quotient->length > 1 && quotient->digits[quotient->length - 1] == 0) {
+        --quotient->length;
+    }
+}
+
+// Function to perform modular arithmetic with big integers (a % b)
+void mod_bigint(const BigInt *a, const BigInt *b, BigInt *result) {
+    BigInt temp;
+    BigInt temp2;
+    init_bigint(&temp);
+    init_bigint(&temp2);
+    BigInt quotient;
+    if (compare_bigint(a, b) < 0) {
+        // If a < b, result is a itself
+        *result = *a;
+    } else {
+        // Otherwise, perform long division to compute a % b
+        temp = *a;
+        quotient.length = 0;
+        while (compare_bigint(&temp, b) >= 0) {
+            int num_shifts = temp.length - b->length;
+            BigInt shifted_b = *b;
+            for (int i = shifted_b.length - 1; i >= 0; i--) {
+                shifted_b.digits[i + num_shifts] = shifted_b.digits[i];
+            }
+            for (int i = 0; i < num_shifts; i++) {
+                shifted_b.digits[i] = 0;
+            }
+            shifted_b.length += num_shifts;
+            while (compare_bigint(&temp, &shifted_b) >= 0) {
+                init_bigint(&temp2);
+                subtract_bigint(&temp, &shifted_b, &temp2);
+                assign_bigint(&temp, &temp2);
+                quotient.digits[quotient.length++] = 1;
+            }
+        }
+        *result = temp;
+    }
+}
+
+void square_bigint(const BigInt *a, BigInt *result) {
+    multiply_bigint(a, a, result);
+}
+
+void sqrt_bigint(const BigInt *a, BigInt *result) {
+    BigInt low, high, mid, mid_squared;
+    BigInt one, two, temp;
+
+    init_bigint(&low);
+    init_bigint(&high);
+    init_bigint(&mid);
+    init_bigint(&mid_squared);
+    init_bigint(&one);
+    init_bigint(&two);
+    init_bigint(&temp);
+
+    // Initialize constants
+    one.digits[0] = 1;
+    one.length = 1;
+    two.digits[0] = 2;
+    two.length = 1;
+
+    // Set initial range for binary search
+    assign_bigint(&low, &one);
+    assign_bigint(&high, a);
+
+    // Binary search for the square root
+    while (compare_bigint(&low, &high) <= 0) {
+        // Compute mid = (low + high) / 2
+        add_bigint(&low, &high, &temp);
+        divide_scalar_bigint(&temp, 2, &mid);
+
+        // Compute mid_squared = mid * mid
+        square_bigint(&mid, &mid_squared);
+
+        // Compare mid_squared with a
+        int cmp = compare_bigint(&mid_squared, a);
+        if (cmp == 0) {
+            // Found exact square root
+            assign_bigint(result, &mid);
+            return;
+        } else if (cmp < 0) {
+            // Mid is too low, adjust the range
+            assign_bigint(&low, &mid);
+            init_bigint(&temp);
+            add_bigint(&low, &one, &temp);
+            assign_bigint(&low, &temp);
+        } else {
+            // Mid is too high, adjust the range
+            assign_bigint(&high, &mid);
+            init_bigint(&temp);
+            subtract_bigint(&high, &one, &temp);
+            assign_bigint(&high, &temp);
+        }
+    }
+
+    // The result is the lower bound of the range
+    assign_bigint(result, &low);
+}
+
+void power_bigint(const BigInt *base, const int exponent, BigInt *result) {
+    BigInt temp;
+    init_bigint(&temp);
+    init_bigint(result);
+    result->digits[0] = 1;
+    if(result->length <= 0) {
+      result->length = 1;
+    }
+    for (int i = 0; i < exponent; i++) {
+        multiply_bigint(result, base, &temp);
+        assign_bigint(result, &temp);
+    }
+}
+
+// Function to compute factorial of n using big integers
+void factorial_bigint(const int n, BigInt *result) {
+    BigInt temp;
+    BigInt temp2;
+    // Initialize result to 1
+    init_bigint(result);
+    result->digits[0] = 1;
+    if(result->length < 1) {
+      result->length = 1;
+    }
+
+    // Compute factorial
+    for (int i = 2; i <= n; i++) {
+        init_bigint(&temp);
+        init_bigint(&temp2);
+        temp.digits[0] = i;
+        temp.length++;
+        assign_bigint(&temp2, result);
+        multiply_bigint(&temp, &temp2, result);
+    }
+}
+
+// Function to perform left shift operation on a BigInt by a specified number of bits
+void left_shift_bit_bigint(BigInt *num,const int shiftbit) {
+    if (shiftbit <= 0) return;
+
+    // Calculate the number of digit shifts and bit shifts
+    int digit_shift = shiftbit / BITS_PER_DIGIT;
+    int bit_shift = shiftbit % BITS_PER_DIGIT;
+
+    // Shift digits to the left by digit_shift
+    for (int i = num->length - 1; i >= 0; i--) {
+        num->digits[i + digit_shift] = num->digits[i];
+    }
+
+    // Fill the shifted digits with zeros
+    for (int i = 0; i < digit_shift; i++) {
+        num->digits[i] = 0;
+    }
+
+    // If there are remaining bit shifts, perform bitwise left shift
+    if (bit_shift > 0) {
+        uint32_t carry = 0;
+        for (int i = 0; i < num->length; i++) {
+            uint32_t next_carry = (num->digits[i] >> (BITS_PER_DIGIT - bit_shift));
+            num->digits[i] <<= bit_shift;
+            num->digits[i] |= carry;
+            carry = next_carry;
+        }
+    }
+
+    // Update length
+    num->length += digit_shift;
+    if (num->digits[num->length - 1] == 0 && num->length > 1) {
+        num->length--;
+    }
+}
+
+// Function to perform right shift operation on a BigInt by a specified number of bits
+void right_shift_bit_bigint(BigInt *num,const int shiftbit) {
+    if (shiftbit <= 0) return;
+
+    // Calculate the number of digit shifts and bit shifts
+    int digit_shift = shiftbit / BITS_PER_DIGIT;
+    int bit_shift = shiftbit % BITS_PER_DIGIT;
+
+    if(digit_shift*BITS_PER_DIGIT + bit_shift <= shiftbit) {
+      init_bigint(num);
+      num->length = 1;
+      return;
+    }
+    // Shift digits to the right by digit_shift
+    for (int i = 0; i < num->length; i++) {
+        num->digits[i - digit_shift] = num->digits[i];
+    }
+
+    // Fill the shifted digits with zeros
+    for (int i = num->length - 1; i >= num->length - digit_shift; i--) {
+        num->digits[i] = 0;
+    }
+
+    // If there are remaining bit shifts, perform bitwise right shift
+    if (bit_shift > 0) {
+        uint32_t carry = 0;
+        for (int i = num->length - 1; i >= 0; i--) {
+            uint32_t next_carry = (num->digits[i] << (BITS_PER_DIGIT - bit_shift));
+            num->digits[i] >>= bit_shift;
+            num->digits[i] |= carry;
+            carry = next_carry;
+        }
+    }
+
+    // Update length
+    num->length -= digit_shift;
+    printf("num->length [%d], num->digits[num->length - 1] [%d]\n", num->length, num->digits[num->length -1]);
+    if (num->digits[num->length - 1] == 0 && num->length > 1) {
+        num->length--;
+    }
+}
+
+
+void left_shift_bigint(BigInt *num, const int shiftdigits) {
+    // Shift each digit to the left by shiftdigits positions
+    for (int i = num->length - 1; i >= 0; i--) {
+        num->digits[i + shiftdigits] = num->digits[i];
+    }
+
+    // Fill the vacated positions with zeros
+    for (int i = 0; i < shiftdigits; i++) {
+        num->digits[i] = 0;
+    }
+
+    // Update the length of the BigInt
+    num->length += shiftdigits;
+}
+
+void right_shift_bigint(BigInt *num, const int shiftdigits) {
+    // Shift each digit to the right by shiftdigits positions
+    for (int i = 0; i < num->length - shiftdigits; i++) {
+        num->digits[i] = num->digits[i + shiftdigits];
+    }
+
+    // Fill the vacated positions with zeros
+    for (int i = num->length - shiftdigits; i < num->length; i++) {
+        num->digits[i] = 0;
+    }
+
+    // Update the length of the BigInt
+    num->length -= shiftdigits;
+}
+
+// Function to compute factorial
+double factorial(int n) {
+    if (n <= 1) return 1;
+    else return n * factorial(n - 1);
+}
+
+// Function to compute sine using Taylor series expansion
+double sine(double x, int precision) {
+    double result = 0;
+    int sign = 1;
+    for (int n = 0; n < precision; n++) {
+        result += sign * pow(x, 2 * n + 1) / factorial(2 * n + 1);
+        sign *= -1;
+    }
+    return result;
+}
+
+// Function to compute cosine using Taylor series expansion
+double cosine(double x, int precision) {
+    double result = 0;
+    int sign = 1;
+    for (int n = 0; n < precision; n++) {
+        result += sign * pow(x, 2 * n) / factorial(2 * n);
+        sign *= -1;
+    }
+    return result;
+}
+
+// Function to compute natural logarithm using Taylor series expansion
+double logarithm(double x, int precision) {
+    if (x <= 0) return NAN; // Handle non-positive values
+    double result = 0;
+    for (int n = 1; n <= precision; n++) {
+        result += pow((x - 1) / x, n) / n;
+    }
+    return result;
+}
+
+
+// Function to compute base 10 logarithm using Taylor series expansion
+double logarithm_base10(double x, int precision) {
+    return logarithm(x, precision) / log(10);
+}
+
+// Function to compute pi using Machin's formula and Taylor series expansion
+double pi(int precision) {
+    double result = 0;
+    for (int n = 0; n < precision; n++) {
+        result += pow(-1, n) / (2 * n + 1);
+    }
+    return 4 * result;
+}
+
+
+void multiply_pi(int *arr, int multiplier) {
+    int carry = 0;
+    for (int i = PRECISION - 1; i >= 0; i--) {
+        int product = arr[i] * multiplier + carry;
+        arr[i] = product % 10;
+        carry = product / 10;
+    }
+}
+
+void print_pi(int *arr) {
+    printf("π = 3.");
+    for (int i = 1; i <= PRECISION; i++) {
+        printf("%d", arr[i - 1]);
+    }
+}
+
+void compute_pi() {
+    int pi[PRECISION];
+    for (int i = 0; i < PRECISION; i++) {
+        pi[i] = 2;
+    }
+
+    int factor = 10;
+    int temporary[PRECISION];
+    for (int i = 0; i < PRECISION; i++) {
+        temporary[i] = 0;
+    }
+
+    for (int i = 0; i < PRECISION * 10; i++) {
+        multiply_pi(temporary, factor);
+        temporary[PRECISION - 1] = 1;
+        for (int j = 0; j < PRECISION; j++) {
+            pi[j] += temporary[j];
+        }
+        factor += 2;
+    }
+
+    print_pi(pi);
+}
+
+void mod_multiply(const BigInt *a, const BigInt *b, const BigInt *n, BigInt *result) {
+    BigInt temp;
+    init_bigint(&temp);
+
+    for (int i = 0; i < b->length; i++) {
+        for (int j = 0; j < b->digits[i]; j++) {
+            BigInt partial;
+            init_bigint(&partial);
+            partial = *a;  // Copy a
+            for (int k = 0; k < i; k++) {
+                left_shift_bigint(&partial, 1);  // Multiply by 10 for each digit of b
+            }
+            add_bigint(&temp, &partial, &temp);  // Add partial result to temp
+        }
+    }
+
+    mod_bigint(&temp, n, result);  // Take the modulus of temp with n
+}
+
+// Function to calculate the greatest common divisor (gcd) of two integers
+int gcd_bigint(int a, int b) {
+    while (b != 0) {
+        int temp = b;
+        b = a % b;
+        a = temp;
+    }
+    return a;
+}   
+
+    
+// Function to calculate binomial coefficient
+uint64_t binomial(uint64_t n, uint64_t k) {
+    if (k > n) return 0;
+    if (k == 0 || k == n) return 1;
+        
+    uint64_t res = 1;
+    for (uint64_t i = 0; i < k; i++) {
+        res *= (n - i);
+        res /= (i + 1);
+    }
+    return res; 
+}       
+    
+// Function to calculate modular exponentiation
+uint64_t mod_exp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1;
+    base %= mod;
+    while (exp > 0) {
+        if (exp & 1) {
+            result = (result * base) % mod;
+        }
+        base = (base * base) % mod;
+        exp >>= 1;
+    }
+    return result;
+}
+
+// Function to initialize a big integer with a value
+void init_bigint_value(BigInt *num, int value) {
+    num->length = 0;
+    while (value > 0) {
+        num->digits[num->length++] = value % 10;
+        value /= 10;
+    }
+}
+
+#endif // #ifdef BIGINT
+
+void test_montgomery_multiply(){
+    BigInt a, b, n, n_inv, r, result;
+    init_bigint(&a);
+    init_bigint(&b);
+    init_bigint(&n);
+    init_bigint(&n_inv);
+    init_bigint(&r);
+    init_bigint(&result);
+
+    // Initialize values for demonstration
+    a.digits[0] = 12345;
+    a.length = 1;
+    b.digits[0] = 67890;
+    b.length = 1;
+    n.digits[0] = 10000;
+    n.length = 1;
+    n_inv.digits[0] = 9000; // This should be the modular inverse of n
+    n_inv.length = 1;
+    r.digits[0] = 100000;
+    r.length = 1;
+
+    montgomery_multiply_omp(&a, &b, &n, &n_inv, &r, &result);
+    print_bigint(&result);
+}
+
+void montgomery_multiply(BigInt *a, BigInt *b, BigInt *n, BigInt *n_inv, BigInt *r, BigInt *result) {
+    BigInt temp;
+    init_bigint(&temp);
+    init_bigint(result);
+
+    for (int i = 0; i < a->length; i++) {
+        uint64_t carry = 0;
+        for (int j = 0; j < b->length; j++) {
+            uint64_t product = a->digits[i] * b->digits[j] + temp.digits[i + j] + carry;
+            temp.digits[i + j] = product % 10;
+            carry = product / 10;
+        }
+        temp.digits[i + b->length] = carry;
+    }
+
+    for (int i = 0; i < a->length + b->length; i++) {
+        uint64_t carry = 0;
+        for (int j = 0; j < n->length; j++) {
+            uint64_t product = result->digits[i] + temp.digits[i] * n_inv->digits[j] + carry;
+            result->digits[i] = product % 10;
+            carry = product / 10;
+        }
+        result->digits[i + n->length] += carry;
+    }
+
+    if (compare_bigint(result, n) >= 0) {
+        init_bigint(&temp);
+        subtract_bigint(result, n, &temp);
+        // Update result
+        *result = temp;
+    }
+}
+
+void montgomery_multiply_omp(BigInt *a, BigInt *b, BigInt *n, BigInt *n_inv, BigInt *r, BigInt *result) {
+    BigInt temp;
+    init_bigint(&temp);
+    init_bigint(result);
+
+    // Perform Montgomery multiplication in parallel
+    #pragma omp parallel for shared(a, b, n, n_inv, r, temp)
+    for (int i = 0; i < a->length; i++) {
+        uint64_t carry = 0;
+        for (int j = 0; j < b->length; j++) {
+            uint64_t product = a->digits[i] * b->digits[j] + temp.digits[i + j] + carry;
+            temp.digits[i + j] = product % 10;
+            carry = product / 10;
+        }
+        temp.digits[i + b->length] = carry;
+    }
+
+    // Combine results from parallel threads
+    #pragma omp barrier
+    // Reduction step can be performed here to merge partial results
+    // Assign result
+    for (int i = 0; i < a->length + b->length; i++) {
+        result->digits[i] = temp.digits[i];
+    }
+    result->length = a->length + b->length;
+}
+
+void rsa_encrypt(BigInt *plaintext, BigInt *n, BigInt *e, BigInt *ciphertext) {
+    montgomery_multiply_omp(plaintext, e, n, NULL, NULL, ciphertext);
+}
+
+void rsa_decrypt(BigInt *ciphertext, BigInt *n, BigInt *d, BigInt *plaintext) {
+    montgomery_multiply_omp(ciphertext, d, n, NULL, NULL, plaintext);
+}
+
+void test_montgomery_rsa(){
+    BigInt plaintext, ciphertext, n, e, d;
+    init_bigint(&plaintext);
+    init_bigint(&ciphertext);
+    init_bigint(&n);
+    init_bigint(&e);
+    init_bigint(&d);
+
+    // Encrypt plaintext
+    rsa_encrypt(&plaintext, &n, &e, &ciphertext);
+    printf("Ciphertext: ");
+    // Print ciphertext
+
+    // Decrypt ciphertext
+    rsa_decrypt(&ciphertext, &n, &d, &plaintext);
+    printf("Plaintext: ");
+    // Print plaintext
+}
+
+// Function to calculate the Montgomery zeta function
+double montgomery_zeta(double x) {
+    // Implement the Montgomery zeta function
+    double result = 0.0;
+    for (double n = 1.0; n <= x; ++n) {
+        result += 1.0 / pow(n, 0.5);
+    }
+    return result;
+}
+
+// Function to calculate the prime count using Montgomery's prime counting function
+uint64_t count_primes_montgomery(uint64_t n) {
+    // Calculate the integral term
+    double integral_term = 0.0;
+    for (double t = n; t <= 2 * n; t += 0.01) {
+        integral_term += 1.0 / (t * (t * t - 1) * log(t));
+    }
+
+    // Calculate the sum over non-trivial zeros of the Riemann zeta function
+    double sum_over_zeros = 0.0;
+    for (double rho = 0.5; rho <= 100; rho += 0.5) {
+        sum_over_zeros += montgomery_zeta(pow(n, rho));
+    }
+
+    // Calculate the prime count using Montgomery's prime counting function
+    uint64_t prime_count = round(montgomery_zeta(n) - sum_over_zeros - log(2) / 2 + integral_term);
+    return prime_count;
+}
+
+// Function to check if a number is prime using AKS primality test
+bool is_prime_aks(uint64_t n) {
+    // Check for some base cases
+    if (n <= 1) return false;
+    if (n <= 3) return true;
+
+    // Find the smallest r such that ord_p(r) > log2(n)
+    uint64_t r = 2;
+    while (r < n) {
+        if (gcd_bigint(r, n) != 1) return false;
+        uint64_t k = 2;
+        uint64_t ord = 1;
+        while (ord < n) {
+            if (mod_exp(r, ord, n) == 1) break;
+            ord = k * (n - 1);
+            k++;
+        }
+        if (ord > log2(n)) break;
+        r++;
+    }
+
+    // Check if (X - a)^n ≡ (X^n - a) (mod X^r - 1, n)
+    for (uint64_t a = 1; a <= sqrt(n); a++) {
+        for (uint64_t b = 1; b <= sqrt(n); b++) {
+            uint64_t lhs = binomial(n, a) * mod_exp(b, n, n);
+            uint64_t rhs = binomial(n, a) * mod_exp(b, n, n) + mod_exp(n, a, n);
+            if (lhs % (n * n) != rhs % (n * n)) return false;
+        }
+    }
+
+    // Check if n is a prime power
+    for (uint64_t a = 2; a <= sqrt(n); a++) {
+        if ((n % a == 0) && is_prime_aks(a)) return false;
+    }
+
+    return true;
+}
+
+void test_aks() {
+    uint64_t num = 127;
+    if(g_nUseOMP == USE_OMP) {
+      // Set number of threads for OpenMP
+      omp_set_num_threads(10);
+      // Check if n is prime using AKS primality test
+      bool result = is_prime_aks_omp(num);
+
+      // Output the result
+      if (result)
+        printf("%d is prime.\n", num);
+      else
+        printf("%d is not prime.\n", num);
+    } else {
+      if (is_prime_aks(num)) {
+        printf("%llu is prime.\n", num);
+      } else {
+        printf("%llu is composite.\n", num);
+      }
+    }
+}
+
+// AKS primality test function
+bool is_prime_aks_omp(uint64_t n) {
+    // Base cases
+    if (n <= 1) {
+        return false;
+    }
+    if (n <= 3) {
+        return true;
+    }
+    if (n % 2 == 0 || n % 3 == 0) {
+        return false;
+    }
+
+    // Initialize BigInt for comparison
+    BigInt num, factor;
+    init_bigint_value(&num, n);
+
+    // AKS primality test algorithm
+    //#pragma omp parallel for private(factor)
+    for (uint64_t r = 2; r * r <= n; r++) {
+        init_bigint_value(&factor, r);
+        if (compare_bigint(&factor, &num) == 0) {
+            continue;
+        }
+        BigInt exp;
+        exp = factor;
+        while (compare_bigint(&exp, &num) < 0) {
+            int a = 1;
+            for (uint64_t m = 1; m <= n; m++) {
+                a = (a * r) % (int)m;
+                if (compare_bigint(&factor, &num) != 0 && compare_bigint(&exp, &num) == 0 && a != 1) {
+                    return false;
+                }
+            }
+            init_bigint_value(&exp, exp.length + 1);
+        }
+    }
+
+    return true;
+}
+
+// Function to count prime numbers up to n using the Sieve of Eratosthenes algorithm
+uint64_t count_primes_eratosthenes_omp(uint64_t n) {
+    if (n <= 1) return 0;
+
+    // Allocate memory to store flags indicating prime or composite
+    bool *is_prime = (bool *)malloc((n + 1) * sizeof(bool));
+    if (is_prime == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(1);
+    }
+
+    // Initialize all numbers as prime
+    #pragma omp parallel for
+    for (uint64_t i = 0; i <= n; ++i) {
+        is_prime[i] = true;
+    }
+
+    // Apply Sieve of Eratosthenes algorithm
+    //#pragma omp parallel for schedule(dynamic)
+    for (uint64_t p = 2; p * p <= n; ++p) {
+        if (is_prime[p]) {
+            // Mark multiples of p as composite
+            for (uint64_t i = p * p; i <= n; i += p) {
+                is_prime[i] = false;
+            }
+        }
+    }
+
+    // Count prime numbers
+    uint64_t count = 0;
+    #pragma omp parallel for reduction(+:count)
+    for (uint64_t p = 2; p <= n; ++p) {
+        if (is_prime[p]) {
+            ++count;
+        }
+    }
+
+    free(is_prime);
+    return count;
+}
+
+// Function to count prime numbers up to n
+uint64_t count_primes_eratosthenes(uint64_t n) {
+    if (n <= 1) return 0;
+
+    // Allocate memory to store flags indicating prime or composite
+    bool *is_prime = (bool *)malloc((n + 1) * sizeof(bool));
+    if (is_prime == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(1);
+    }
+
+    // Initialize all numbers as prime
+    for (uint64_t i = 0; i <= n; ++i) {
+        is_prime[i] = true;
+    }
+
+    // Apply Sieve of Eratosthenes algorithm
+    for (uint64_t p = 2; p * p <= n; ++p) {
+        if (is_prime[p]) {
+            // Mark multiples of p as composite
+            for (uint64_t i = p * p; i <= n; i += p) {
+                is_prime[i] = false;
+            }
+        }
+    }
+
+    // Count prime numbers
+    uint64_t count = 0;
+    for (uint64_t p = 2; p <= n; ++p) {
+        if (is_prime[p]) {
+            ++count;
+        }
+    }
+
+    free(is_prime);
+    return count;
+}
+
+uint64_t count_primes_riemann(uint64_t n) {
+    if (n <= 1) return 0;
+
+    double x = n;
+    double log_x = log(x);
+    double pi_x = x / log_x;
+
+    return (uint64_t)pi_x;
+}
+
+void test_fermat_primes() {
+    int count = 10; // Number of Fermat primes to generate
+    fermat_primes(count);
+}
+
+void fermat_primes(int n) {
+    uint64_t num;
+    for (int i = 0; i < n; ++i) {
+        num = pow(2, pow(2, i)) + 1;
+        if (is_prime(num)) {
+            printf("Fermat prime #%d: %llu\n", i+1, num);
+        }
+    }
+}
+
+void test_count_primes() {
+     uint64_t n;
+    printf("Enter a number: ");
+    scanf("%llu", &n);
+
+    if(g_nUseOMP == USE_OMP) {
+      uint64_t primes_count = count_primes_eratosthenes_omp(n);
+
+      printf("Number of prime numbers less than or equal to %llu: %llu\n", n, primes_count);
+    } else {
+      uint64_t primes_count = count_primes_eratosthenes(n);
+
+      printf("Number of prime numbers less than or equal to %llu: %llu\n", n, primes_count);
+    }
+
+    uint64_t primes_count = count_primes_riemann(n);
+
+    printf("Number of prime numbers less than %llu (estimated using Riemann Hypothesis): %llu\n", n, primes_count);
+
+
+    uint64_t x = 1000; // Calculate the prime count up to x
+    uint64_t count = count_primes_montgomery(x);
+    printf("The number of primes less than or equal to %llu is %llu\n", x, count);
+}
+// Function to calculate factorial modulo n
+uint64_t factorial_mod_n(uint64_t n) {
+    if (n <= 1) return 1;
+
+    uint64_t result = 1;
+    for (uint64_t i = 2; i < n; ++i) {
+        result = ((result * i) % n);
+    }
+    return result;
+}
+
+// Function to check if a number satisfies Wilson's theorem
+int is_prime_wilson(uint64_t n) {
+    if (n <= 1) return 0; // 0 and 1 are not prime
+    // Calculate (n - 1)! modulo n
+    uint64_t factorial_mod = factorial_mod_n(n);
+
+    // Check if (n - 1)! ≡ -1 (mod n)
+    return (factorial_mod == n - 1);
+}
+
+void test_wilson() {
+    uint64_t number;
+    printf("Enter a number to check if it's prime using Wilson's theorem: ");
+    scanf("%llu", &number);
+
+    if (is_prime_wilson(number)) {
+        printf("%llu is a prime number according to Wilson's theorem.\n", number);
+    } else {
+        printf("%llu is not a prime number according to Wilson's theorem.\n", number);
+    }
+}
+
+void test_monteCarloSimulation() {
+  int num_points = 1000000;
+
+  int inside_circle = 0;
+
+  #pragma omp parallel
+  {
+
+     #pragma omp for reduction(+:inside_circle)
+     for (int i = 0; i < num_points; ++i) {
+       double x = (double)mt19937_extract_number(&mt_state) / (double)UINT32_MAX;
+       double y = (double)mt19937_extract_number(&mt_state) / (double)UINT32_MAX;
+       double distance = x * x + y * y;
+       if (distance <= 1) {
+         inside_circle++;
+      }
+    }
+  }
+
+  double pi_estimate = (double)inside_circle / num_points * 4;
+  printf("Estimate of pi using Monte Carlo simulation: %.10f\n", pi_estimate);
+}
+#endif
+
+bool isPrimeby_kj(uint64_t n, int maxNumber) {
+  double s = 1.0;
+  double si = 0.0;
+  // The Riemann hypothesis is the conjecture that the Riemann zeta function has its zeros only at the negative even integers and complex numbers with real part 1/2. Many consider it to be the most important unsolved problem in pure mathematics.It is of great interest in number theory because it implies results about the distribution of prime numbers. (from en.wikipedia.org)
+  // The P is 1/2 if riemanne hypothesis is true.
+  double p = 0.5;
+  // Montgomery's pair correlation conjecture is a conjecture made by Hugh Montgomery (1973) that the pair correlation between pairs of zeros of the Riemann zeta function. (from en.wikipedia.org)
+  // 1 - (sin(pi*u)/(pi*u))^2 + delta(u).
+  double q = 0.0;
+  double u = 1.0;
+  while(1) {
+    for(int n = 1; n < maxNumber; n++) {
+      q = 1 - pow(2, (sin(PI*u)/(PI*u)));
+      s += cos(q*log(n*1.0))/pow(n, p);
+      si += -sin(q*log(n*1.0))/pow(n, p);
+      logging(LOG_DEBUG, "sigma(k=1,k=%d) euler_product(%.2f + %.2fi) = %.2f + %.2fi\n", n + 1, p, q, s, si);
+    }
+    if(s == 0 && si == 0) {
+      return true; 
+    }
+  }
+}
+
+// Riemann Prime Counting Function
+// Riemann's explicit formula for the number of primes less than a given number states that, in terms of a sum over the zeros of the Riemann zeta function, the magnitude of the oscillations of primes around their expected position is controlled by the real parts of the zeros of the zeta function. (from en.wikipedia.org)
+// π(x) -li(x) = O(x^beta * logx)
+// It was conjectured in the end of the 18th century by Gauss and by Legendre to be approximately.(from en.wikipedia.org)
+double getPrimeCountRiemann(int n) {
+  return n / log(n);
+}
+
+double getPrimeCount_kj(int n) {
+  return (sqrt(pow(n,2) + pow((n/PI), 2))) / (log(n)*primeDistribution(n));
+}
+
+// The difference between primes is not a standard of gauss distribution.
+// So, we can prime counting by riemann prime counting function multiply with probability distribution.
+// The difference in prime is not Gaussian distribution.
+// So we can calculate prime numbers count by adding the Riemann prime calculation function and the difference of primes probability distribution.
+double primeDistribution(int n) {
+ // C is adjust parameter.(This is test variable.
+ int C = 1.1;
+ return ((1 - pow(2, ((sin(log(n)*PI*C))) / log(n)*PI*C)))*(1 - pow(2, ((cos(log(n)*PI*C)) / log(n)*PI*C))) / 2;
+}
+
+void test_goldBach() {
+ goldBach();
+ test_prime_gap_distribution();
+  
+}
+// Goldbach's conjecture is one of the oldest and best-known unsolved problems in number theory and all of mathematics. It states that every even natural number greater than 2 is the sum of two prime numbers. (from en.wikipedia.org)
+void goldBach() {
+  uint64_t nPrimePair = 0;
+  uint64_t nPrimeA = 1;// 2 add
+  uint64_t nPrimeB = 0;
+  bool bPrimeNumber1 = false;
+  bool bPrimeNumber2 = false;
+  uint64_t nPrimePairCount = 0;
+  uint64_t dbPrimePair = 0;
+  uint64_t nPrimeCount = 0;
+  uint64_t dbPrime = 0;
+  uint64_t nPrimeTotal = 0;
+  uint64_t nPrimePairTotal = 0;
+  uint64_t nTwinPrimeCount = 0;
+  if(g_nMinPrime%2 == 0) {
+    g_nMinPrime++;
+  }
+  for(int i = 3; i < 10000; i+=2) {
+    for(int j = 1; j < i; j+=2) {
+      bPrimeNumber1 = isPrime(j);
+      bPrimeNumber2 = isPrime(i*2-j);
+      if(bPrimeNumber1 && bPrimeNumber2) {
+        nPrimePair++;
+        nPrimePairTotal++;
+        if(j == i -1) {
+          //TODO : Insert into Twin Primes database.
+          nTwinPrimeCount++;
+        }
+      }
+      if(bPrimeNumber1) {
+        nPrimeA++;
+      }
+      if(bPrimeNumber2) {
+        nPrimeB++;
+      }
+    }
+  }
+  nPrimePairCount+=nPrimePair;
+  dbPrimePair+=(uint64_t)(nPrimePair*100.0/((nPrimeA + nPrimeB)*1.0));
+  nPrimeCount+=(nPrimeA + nPrimeB);
+  dbPrime+=(uint64_t)((nPrimeA + nPrimeB)*100.0/(((g_nMaxPrime - g_nMinPrime)*2.0)*1.0));
+  nPrimeTotal++;
+  logging(LOG_DEBUG, "goldBach [%llu][%llu][%llu][%llu][%llu][%llu][%llu]\n", nPrimePairCount, dbPrimePair, nPrimeCount, dbPrime, nPrimeTotal, nPrimePairTotal, nTwinPrimeCount);
+
+  logging(LOG_INFO, "%6llu~%llu\t\t%6.2f %3.2f %6.2f %3.2f %llu\n", g_nMinPrime,
+                                        g_nMaxPrime,
+                                        nPrimeCount*1.0/nPrimeTotal*1.0,
+                                        dbPrime*1.0/nPrimeTotal*1.0,
+                                        nPrimePairCount*1.0/nPrimePairTotal*1.0,
+                                        dbPrimePair*1.0/nPrimePairTotal*1.0,
+                                        nTwinPrimeCount);
+}
+
+#ifdef EXPERIMENTAL
+void test_prime_gap_distribution() {
+    uint64_t start=1, end=10000000;
+    //printf("Enter the range to compute prime gap distribution (start end): ");
+    //scanf("%d %d", &start, &end);
+    prime_gap_distribution(start, end);
+}
+// Function to count primes within a given range and calculate the gaps
+void prime_gap_distribution(uint64_t start, uint64_t end) {
+    uint64_t prev_prime = 0;
+    uint64_t max_gap = 0;
+    uint64_t *gap_count = (uint64_t *)calloc(1, sizeof(uint64_t)); // Dynamically allocate memory for gap counts
+
+    for (uint64_t i = start; i <= end; i++) {
+        if (is_prime(i)) {
+            if (prev_prime != 0) {
+                uint64_t gap = i - prev_prime;
+                if (gap > max_gap) {
+                    gap_count = (uint64_t *)realloc(gap_count, (gap + 1) * sizeof(uint64_t)); // Resize array if needed
+                    for (uint64_t j = max_gap + 1; j <= gap; j++) {
+                        gap_count[j] = 0;
+                    }
+                    max_gap = gap;
+                }
+                gap_count[gap]++;
+            }
+            prev_prime = i;
+        }
+    }
+
+    printf("Prime gap distribution from %llu to %llu:\n", start, end);
+    printf("Gap\tCount\n");
+    for (uint64_t i = 1; i <= max_gap; i++) {
+        printf("%llu\t%llu\n", i, gap_count[i]);
+    }
+    free(gap_count); // Free dynamically allocated memory
+}
+
+// Function to count primes within a given range and calculate the gaps
+void prime_gap_distribution_omp(uint64_t start, uint64_t end) {
+    uint64_t prev_prime = 0;
+    uint64_t max_gap = 0;
+    uint64_t *gap_count = (uint64_t *)calloc(1, sizeof(uint64_t)); // Dynamically allocate memory for gap counts
+
+    #pragma omp parallel for
+    for (uint64_t i = start; i <= end; i++) {
+        if (isPrime(i)) {
+            uint64_t local_max_gap = 0;
+            uint64_t local_prev_prime = 0;
+            if (prev_prime != 0) {
+                local_max_gap = i - prev_prime;
+                local_prev_prime = prev_prime;
+            }
+            prev_prime = i;
+
+            #pragma omp critical
+            {
+                if (local_max_gap > max_gap) {
+                    gap_count = (uint64_t *)realloc(gap_count, (local_max_gap + 1) * sizeof(uint64_t)); // Resize array if needed
+                    for (uint64_t j = max_gap + 1; j <= local_max_gap; j++) {
+                        gap_count[j] = 0;
+                    }
+                    max_gap = local_max_gap;
+                }
+                gap_count[local_max_gap]++;
+            }
+        }
+    }
+
+    printf("Prime gap distribution from %llu to %llu:\n", start, end);
+    printf("Gap\tCount\n");
+    for (uint64_t i = 1; i <= max_gap; i++) {
+        printf("%llu\t%llu\n", i, gap_count[i]);
+    }
+    free(gap_count); // Free dynamically allocated memory
+}
+
+
+// Sigmoid activation function
+double sigmoid(double x) {
+    return 1.0 / (1.0 + exp(-x));
+}
+
+// Derivative of the sigmoid function
+double sigmoid_derivative(double x) {
+    return x * (1.0 - x);
+}
+
+// Forward pass through the neural network
+void forward_pass(double input[INPUT_SIZE], double hidden[HIDDEN_SIZE], double output[OUTPUT_SIZE], double weights_ih[INPUT_SIZE][HIDDEN_SIZE], double weights_ho[HIDDEN_SIZE][OUTPUT_SIZE]) {
+    // Compute hidden layer values
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
+        hidden[i] = 0;
+        for (int j = 0; j < INPUT_SIZE; j++) {
+            hidden[i] += input[j] * weights_ih[j][i];
+        }
+        hidden[i] = sigmoid(hidden[i]);
+    }
+
+    // Compute output layer values
+    for (int i = 0; i < OUTPUT_SIZE; i++) {
+        output[i] = 0;
+        for (int j = 0; j < HIDDEN_SIZE; j++) {
+            output[i] += hidden[j] * weights_ho[j][i];
+        }
+        output[i] = sigmoid(output[i]);
+    }
+}
+
+
+// Backpropagation algorithm to update weights
+void backpropagation(double input[INPUT_SIZE], double hidden[HIDDEN_SIZE], double output[OUTPUT_SIZE], double target[OUTPUT_SIZE], double weights_ih[INPUT_SIZE][HIDDEN_SIZE], double weights_ho[HIDDEN_SIZE][OUTPUT_SIZE]) {
+    // Compute output layer errors
+    double output_errors[OUTPUT_SIZE];
+    for (int i = 0; i < OUTPUT_SIZE; i++) {
+        output_errors[i] = target[i] - output[i];
+    }
+
+    // Compute hidden layer errors
+    double hidden_errors[HIDDEN_SIZE];
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
+        hidden_errors[i] = 0;
+        for (int j = 0; j < OUTPUT_SIZE; j++) {
+            hidden_errors[i] += output_errors[j] * weights_ho[i][j];
+        }
+    }
+
+    // Update weights between hidden and output layers
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
+        for (int j = 0; j < OUTPUT_SIZE; j++) {
+            double delta = output_errors[j] * sigmoid_derivative(output[j]) * hidden[i];
+            weights_ho[i][j] += LEARNING_RATE * delta;
+        }
+    }
+
+    // Update weights between input and hidden layers
+    for (int i = 0; i < INPUT_SIZE; i++) {
+        for (int j = 0; j < HIDDEN_SIZE; j++) {
+            double delta = hidden_errors[j] * sigmoid_derivative(hidden[j]) * input[i];
+            weights_ih[i][j] += LEARNING_RATE * delta;
+        }
+    }
+}
+
+void test_nn() {
+    // Initialize weights randomly
+    double weights_ih[INPUT_SIZE][HIDDEN_SIZE];
+    double weights_ho[HIDDEN_SIZE][OUTPUT_SIZE];
+    for (int i = 0; i < INPUT_SIZE; i++) {
+        for (int j = 0; j < HIDDEN_SIZE; j++) {
+            weights_ih[i][j] = ((double)mt19937_extract_number(&mt_state) / UINT32_MAX) * 2 - 1; // Random weights between -1 and 1
+        }
+    }
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
+        for (int j = 0; j < OUTPUT_SIZE; j++) {
+            weights_ho[i][j] = ((double)mt19937_extract_number(&mt_state) / UINT32_MAX) * 2 - 1; // Random weights between -1 and 1
+        }
+    }
+
+    // Training data (XOR problem)
+    double inputs[4][INPUT_SIZE] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+    double targets[4][OUTPUT_SIZE] = {{0}, {1}, {1}, {0}};
+
+    // Train the neural network
+    // Parallelize the training loop using OpenMP
+#pragma omp parallel for num_threads(NUM_THREADS)
+    for (int iter = 0; iter < NUM_EPOCHS; iter++) {
+        for (int i = 0; i < 4; i++) {
+            double input[INPUT_SIZE];
+            double hidden[HIDDEN_SIZE];
+            double output[OUTPUT_SIZE];
+            for (int j = 0; j < INPUT_SIZE; j++) {
+                input[j] = inputs[i][j];
+            }
+            forward_pass(input, hidden, output, weights_ih, weights_ho);
+            backpropagation(input, hidden, output, targets[i], weights_ih, weights_ho);
+        }
+    }
+
+    // Test the neural network
+    printf("Testing the neural network:\n");
+    for (int i = 0; i < 4; i++) {
+        double input[INPUT_SIZE];
+        double hidden[HIDDEN_SIZE];
+        double output[OUTPUT_SIZE];
+        for (int j = 0; j < INPUT_SIZE; j++) {
+            input[j] = inputs[i][j];
+        }
+        forward_pass(input, hidden, output, weights_ih, weights_ho);
+        printf("Input: %d %d, Output: %f\n", (int)input[0], (int)input[1], output[0]);
+    }
+
+}
+
+#endif
